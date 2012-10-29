@@ -2,7 +2,9 @@
 
     <string name="app_name">TeXpert</string>
     <string name="hello_world">Hello world!</string>
+    <string name="menu_compile">Compile</string>
+    <string name="menu_document_structure">Structure</string>
     <string name="menu_settings">Settings</string>
-    <string name="title_activity_main">TeXpert</string>
+    <string name="title_texpert">TeXpert</string>
 
 </resources>
