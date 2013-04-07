@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * 
+ * A text paragraph
  * 
  * @author L.A.H.
  * 
@@ -12,27 +12,33 @@ import java.util.regex.Pattern;
 public class Paragraph {
 
 	/**
-	 * Pattern for paragraph breaks (two or more \n characters)
-	 */
-	Pattern parabreak = Pattern.compile("(\\n|\\r\\n){2,}");
-
-	/**
 	 * Single line break pattern
 	 */
-	Pattern linebreak = Pattern.compile("\\n|\\r\\n");
+	public static final Pattern linebreak = Pattern.compile("\\n|\\r\\n");
+
+	/**
+	 * Pattern for paragraph breaks (two or more \n characters)
+	 */
+	public static final Pattern parabreak = Pattern.compile("(\\n|\\r\\n){2,}");
+
+	private String content;
 
 	private List<String> lines;
 
-	public int getNumLines() {
-		return lines.size();
+	public Paragraph(String content) {
+		this.content = content;
+	}
+
+	public CharSequence getContent() {
+		return content;
 	}
 
 	public String getLine(int childPosition) {
 		return lines.get(childPosition);
 	}
 
-	public CharSequence getText() {
-		return null;
+	public int getNumLines() {
+		return lines.size();
 	}
 
 }

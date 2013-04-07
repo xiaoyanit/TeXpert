@@ -30,4 +30,22 @@
 		<nature>com.android.ide.eclipse.adt.AndroidNature</nature>
 		<nature>org.eclipse.jdt.core.javanature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>LAHSpectre</name>
+			<type>2</type>
+			<locationURI>WORKSPACE_LOC/LAHSpectre/src</locationURI>
+		</link>
+	</linkedResources>
+	<filteredResources>
+		<filter>
+			<id>1365325478150</id>
+			<name>LAHSpectre</name>
+			<type>22</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-true-(Digger|StreamRedirector|FileName|StringAccumulator).*</arguments>
+			</matcher>
+		</filter>
+	</filteredResources>
 </projectDescription>
