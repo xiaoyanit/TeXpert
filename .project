@@ -39,12 +39,12 @@
 	</linkedResources>
 	<filteredResources>
 		<filter>
-			<id>1365325478150</id>
+			<id>1365345826547</id>
 			<name>LAHSpectre</name>
 			<type>22</type>
 			<matcher>
 				<id>org.eclipse.ui.ide.multiFilter</id>
-				<arguments>1.0-name-matches-false-true-(Digger|StreamRedirector|FileName|StringAccumulator).*</arguments>
+				<arguments>1.0-name-matches-false-true-Digger.*</arguments>
 			</matcher>
 		</filter>
 	</filteredResources>

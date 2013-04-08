@@ -21,6 +21,18 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data
+                    android:mimeType="text/x-tex"
+                    android:scheme="file" />
+                <data
+                    android:mimeType="text/x-latex"
+                    android:scheme="file" />
+            </intent-filter>
         </activity>
     </application>
 

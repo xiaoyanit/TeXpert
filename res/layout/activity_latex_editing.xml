@@ -11,6 +11,7 @@
     <ListView
         android:id="@+id/latex_source_listview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:divider="@android:color/transparent" />
 
 </RelativeLayout>

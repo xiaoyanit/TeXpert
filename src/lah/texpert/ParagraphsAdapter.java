@@ -6,6 +6,7 @@ import java.util.List;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnFocusChangeListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -18,9 +19,19 @@ import android.widget.EditText;
  */
 public class ParagraphsAdapter extends ArrayAdapter<Paragraph> {
 
+	private View current_focus;
+
 	private LayoutInflater layout_inflater;
 
 	private List<Paragraph> paragraphs;
+
+	final OnFocusChangeListener update_focus = new OnFocusChangeListener() {
+
+		@Override
+		public void onFocusChange(View view, boolean hasFocus) {
+			current_focus = hasFocus ? view : null;
+		}
+	};
 
 	public ParagraphsAdapter(Context context, int textViewResourceId) {
 		super(context, textViewResourceId);
@@ -57,10 +68,16 @@ public class ParagraphsAdapter extends ArrayAdapter<Paragraph> {
 	public View getView(int position, View convertView, ViewGroup parent) {
 		assert getContext() != null;
 		View paraview = convertView == null ? layout_inflater.inflate(R.layout.paragraph, null) : convertView;
-		Paragraph para = getItem(position);
+		Paragraph paragraph = getItem(position);
 		EditText edit_text = (EditText) paraview.findViewById(R.id.paragraph_edittext);
-		edit_text.setText(para.getContent());
+		edit_text.setText(paragraph.getContent());
+		edit_text.addTextChangedListener(paragraph.getTextWatcher());
+		edit_text.setOnFocusChangeListener(update_focus);
 		return paraview;
+	}
+
+	public boolean isEditing() {
+		return current_focus != null;
 	}
 
 }

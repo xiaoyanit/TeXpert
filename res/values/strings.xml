@@ -3,6 +3,9 @@
 
     <string name="app_name">TeXpert</string>
     <string name="title_activity_latex_editing">TeXpert</string>
+    <string name="action_open">Open</string>
+    <string name="action_save">Save</string>
+    <string name="action_send">Send</string>
     <string name="action_settings">Settings</string>
 
 </resources>

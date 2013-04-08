@@ -3,6 +3,9 @@ package lah.texpert;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import android.text.Editable;
+import android.text.TextWatcher;
+
 /**
  * A text paragraph
  * 
@@ -25,8 +28,26 @@ public class Paragraph {
 
 	private List<String> lines;
 
+	private final TextWatcher watcher;
+
 	public Paragraph(String content) {
 		this.content = content;
+		this.watcher = new TextWatcher() {
+
+			@Override
+			public void afterTextChanged(Editable s) {
+			}
+
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+			}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				// commit change to the underlying paragraph
+				setContent(s);
+			}
+		};
 	}
 
 	public CharSequence getContent() {
@@ -39,6 +60,14 @@ public class Paragraph {
 
 	public int getNumLines() {
 		return lines.size();
+	}
+
+	public TextWatcher getTextWatcher() {
+		return watcher;
+	}
+
+	public void setContent(CharSequence s) {
+		content = s.toString();
 	}
 
 }
