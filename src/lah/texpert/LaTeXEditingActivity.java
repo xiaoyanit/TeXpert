@@ -10,6 +10,7 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,50 +25,49 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends Activity {
 
+	@SuppressWarnings("unused")
 	private static final long REFRESH_PERIOD = 6000;
 
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
-	private ParagraphsAdapter code_adapter;
-
-	private Runnable code_refresh = new Runnable() {
-
-		@Override
-		public void run() {
-			// commit the changes
-			if (code_adapter != null && !code_adapter.isEditing())
-				code_adapter.notifyDataSetChanged();
-			// post next execution
-			handler.postDelayed(this, REFRESH_PERIOD);
-		}
-	};
+	private DocumentAdapter document_adapter;
 
 	private File focusing_file;
 
+	@SuppressWarnings("unused")
 	private Handler handler;
 
 	private ListView latex_source_listview;
+
+	// private Runnable refresh = new Runnable() {
+	//
+	// @Override
+	// public void run() {
+	// if (document_adapter != null && !document_adapter.isEditing())
+	// document_adapter.notifyDataSetChanged();
+	// handler.postDelayed(this, REFRESH_PERIOD);
+	// }
+	// };
+
+	@SuppressWarnings("unused")
+	private void handleIntent() {
+		Intent intent = getIntent();
+		Uri data;
+		File file;
+		if ((data = intent.getData()) != null && data.getScheme().equals("file")
+				&& (file = new File(data.getPath())).exists()) {
+			intent.setData(null);
+			openDocument(file);
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
 		latex_source_listview = (ListView) findViewById(R.id.latex_source_listview);
-		Intent intent = getIntent();
-		Uri data;
-		if ((data = intent.getData()) != null && data.getScheme().equals("file")
-				&& (focusing_file = new File(data.getPath())).exists()) {
-			intent.setData(null);
-			try {
-				String test_document = Streams.readTextFile(focusing_file);
-				code_adapter = new ParagraphsAdapter(this, 0);
-				code_adapter.bindText(test_document);
-				latex_source_listview.setAdapter(code_adapter);
-			} catch (IOException e) {
-				e.printStackTrace(System.out);
-			}
-		}
+		openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
 	}
 
 	@Override
@@ -99,18 +99,31 @@ public class LaTeXEditingActivity extends Activity {
 		return super.onOptionsItemSelected(item);
 	}
 
-	@Override
-	protected void onPause() {
-		super.onPause();
-		if (handler != null)
-			handler.removeCallbacks(code_refresh);
-	}
+	// @Override
+	// protected void onPause() {
+	// super.onPause();
+	// if (handler != null)
+	// handler.removeCallbacks(refresh);
+	// }
+	//
+	// @Override
+	// protected void onResume() {
+	// super.onResume();
+	// handler = new Handler();
+	// handler.postDelayed(refresh, REFRESH_PERIOD);
+	// }
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-		handler = new Handler();
-		handler.postDelayed(code_refresh, REFRESH_PERIOD);
+	private void openDocument(File file) {
+		if (file == null || !file.exists())
+			return;
+		try {
+			focusing_file = file;
+			String file_content = Streams.readTextFile(file);
+			document_adapter = new DocumentAdapter(this, file_content);
+			latex_source_listview.setAdapter(document_adapter);
+		} catch (IOException e) {
+			e.printStackTrace(System.out);
+		}
 	}
 
 }

@@ -3,8 +3,11 @@
     android:id="@+id/paragraph_edittext"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/paragraph_edittext_background"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    android:inputType="textMultiLine"
+    android:inputType="textMultiLine|textNoSuggestions"
+    android:paddingTop="5sp"
+    android:paddingBottom="5sp"
     android:typeface="monospace" />
 <!-- android:background="@android:color/transparent" -->
