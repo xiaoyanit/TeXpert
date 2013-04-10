@@ -4,14 +4,14 @@ import java.io.File;
 import java.io.IOException;
 
 import lah.spectre.stream.Streams;
+import lah.widgets.fileview.FileDialog;
+import lah.widgets.fileview.IFileSelectListener;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
@@ -25,9 +25,6 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends Activity {
 
-	@SuppressWarnings("unused")
-	private static final long REFRESH_PERIOD = 6000;
-
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
@@ -35,22 +32,8 @@ public class LaTeXEditingActivity extends Activity {
 
 	private File focusing_file;
 
-	@SuppressWarnings("unused")
-	private Handler handler;
-
 	private ListView latex_source_listview;
 
-	// private Runnable refresh = new Runnable() {
-	//
-	// @Override
-	// public void run() {
-	// if (document_adapter != null && !document_adapter.isEditing())
-	// document_adapter.notifyDataSetChanged();
-	// handler.postDelayed(this, REFRESH_PERIOD);
-	// }
-	// };
-
-	@SuppressWarnings("unused")
 	private void handleIntent() {
 		Intent intent = getIntent();
 		Uri data;
@@ -67,7 +50,8 @@ public class LaTeXEditingActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
 		latex_source_listview = (ListView) findViewById(R.id.latex_source_listview);
-		openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
+		// openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
+		handleIntent();
 	}
 
 	@Override
@@ -77,11 +61,22 @@ public class LaTeXEditingActivity extends Activity {
 		return true;
 	}
 
+	private FileDialog dialog;
+
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_open:
 			// TODO handle opening of document
+			if (dialog == null)
+				dialog = new FileDialog(this, new IFileSelectListener() {
+
+					@Override
+					public void onFileSelected(File result) {
+						openDocument(result);
+					}
+				}, "");
+			dialog.show();
 			return true;
 		case R.id.action_save:
 			// TODO handle saving of document
@@ -98,20 +93,6 @@ public class LaTeXEditingActivity extends Activity {
 		}
 		return super.onOptionsItemSelected(item);
 	}
-
-	// @Override
-	// protected void onPause() {
-	// super.onPause();
-	// if (handler != null)
-	// handler.removeCallbacks(refresh);
-	// }
-	//
-	// @Override
-	// protected void onResume() {
-	// super.onResume();
-	// handler = new Handler();
-	// handler.postDelayed(refresh, REFRESH_PERIOD);
-	// }
 
 	private void openDocument(File file) {
 		if (file == null || !file.exists())

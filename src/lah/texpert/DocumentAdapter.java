@@ -7,19 +7,18 @@ import java.util.regex.Pattern;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
-import android.text.TextWatcher;
 import android.text.style.CharacterStyle;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnFocusChangeListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.TextView.BufferType;
+import android.widget.TextView;
 
 /**
  * Adapter to bind to the LaTeX document
@@ -27,7 +26,7 @@ import android.widget.TextView.BufferType;
  * @author L.A.H.
  * 
  */
-public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.Paragraph> {
+public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.LaTeXBlock> {
 
 	/**
 	 * Class to encapsulate char sequence (i.e. non-formating) String editing operations. This is to support undo.
@@ -75,38 +74,28 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.Paragraph> {
 	/**
 	 * Class for a single text paragraph (no two consecutive line-breaks)
 	 */
-	class Paragraph implements TextWatcher {
+	static class LaTeXBlock extends SpannableStringBuilder {
 
 		/**
-		 * Editable to hold the information
+		 * When there is bound view i.e. this field is not {@code null}, the content of this block is the content of the
+		 * view. Otherwise, the content of this block is given by itself.
 		 */
-		private Editable content;
+		TextView bound_view = null;
 
-		/**
-		 * Split into lines
-		 */
 		private List<String> lines;
 
-		public Paragraph(Editable content) {
-			this.content = content;
+		public LaTeXBlock(CharSequence s) {
+			super(s);
+			annotate();
+		}
+
+		public void annotate() {
 			for (int i = 0; i < LATEX_PATTERNS.length; i++) {
-				Matcher matcher = LATEX_PATTERNS[i].matcher(content);
+				Matcher matcher = LATEX_PATTERNS[i].matcher(this);
 				while (matcher.find())
-					content.setSpan(CharacterStyle.wrap(LATEX_STYLES[i]), matcher.start(1), matcher.end(1),
+					setSpan(CharacterStyle.wrap(LATEX_STYLES[i]), matcher.start(1), matcher.end(1),
 							Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
 			}
-		}
-
-		@Override
-		public void afterTextChanged(Editable s) {
-		}
-
-		@Override
-		public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-		}
-
-		public CharSequence getContent() {
-			return content;
 		}
 
 		public String getLine(int childPosition) {
@@ -117,9 +106,16 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.Paragraph> {
 			return lines.size();
 		}
 
-		@Override
-		public void onTextChanged(CharSequence s, int start, int before, int count) {
-			content.replace(start, start + before, s, 0, count);
+		/**
+		 * Remove binding to view; update the latest content from the view to this object and re-annotate
+		 */
+		public void unbindView() {
+			Log.v("LaTeXBlock#unbind", "Update content of block \"" + this + "\"" + " to \"" + bound_view.getText()
+					+ "\"");
+			replace(0, length(), bound_view.getText());
+			bound_view = null;
+			clearSpans();
+			annotate();
 		}
 
 	}
@@ -160,15 +156,20 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.Paragraph> {
 	 * Pattern for a text paragraph within the entire document (strings which ends with two or more \n or \r\n or end of
 	 * input)
 	 */
-	static final Pattern PARAGRAPH_PATTERN = Pattern.compile("(.|\\n.)*(\\n{2,}|\\n?\\z)");
+	static final Pattern PARAGRAPH_PATTERN = Pattern.compile("((.|\\n.)*)(\\n{2,}|\\n*\\z)");
 
+	static String getStringIdentiferObject(Object obj) {
+		return obj.getClass().getSimpleName() + "@" + System.identityHashCode(obj);
+	}
+
+	private List<LaTeXBlock> blocks;
+
+	@SuppressWarnings("unused")
 	private View current_focus;
 
 	private StringBuilder document_builder;
 
 	private LayoutInflater layout_inflater;
-
-	private List<Paragraph> paragraphs;
 
 	private final OnFocusChangeListener update_focus = new OnFocusChangeListener() {
 
@@ -185,11 +186,13 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.Paragraph> {
 		if (initial_document == null)
 			initial_document = "";
 		document_builder = new StringBuilder(initial_document);
-		paragraphs = new LinkedList<Paragraph>();
+		blocks = new LinkedList<LaTeXBlock>();
 		Matcher paramatcher = PARAGRAPH_PATTERN.matcher(document_builder);
 		while (paramatcher.find()) {
-			Editable paraeditable = new SpannableStringBuilder(paramatcher.group());
-			paragraphs.add(new Paragraph(paraeditable));
+			// Log.v("PARAGRAPH_BLOCK", paramatcher.group(1).length() + " " + paramatcher.group(3).length());
+			blocks.add(new LaTeXBlock(paramatcher.group(1)));
+			if (paramatcher.group(1).length() > 0)
+				blocks.add(new LaTeXBlock(paramatcher.group(3)));
 		}
 	}
 
@@ -199,27 +202,40 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.Paragraph> {
 
 	@Override
 	public int getCount() {
-		return paragraphs == null ? 0 : paragraphs.size();
+		return blocks == null ? 0 : blocks.size();
 	}
 
 	@Override
-	public Paragraph getItem(int position) {
-		return paragraphs.get(position);
+	public LaTeXBlock getItem(int position) {
+		return blocks.get(position);
 	}
 
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
-		Paragraph paragraph = getItem(position);
-		EditText paragraph_view = (EditText) (convertView == null ? layout_inflater.inflate(R.layout.paragraph, null)
-				: convertView);
-		paragraph_view.setText(paragraph.getContent(), BufferType.SPANNABLE);
-		// paragraph_view.addTextChangedListener(paragraph);
-		paragraph_view.setOnFocusChangeListener(update_focus);
-		return paragraph_view;
-	}
+		// Get the block
+		LaTeXBlock block = getItem(position);
 
-	public boolean isEditing() {
-		return current_focus != null;
+		// If the block already has some view
+		if (block.bound_view != null)
+			return block.bound_view;
+
+		// Prepare the view
+		TextView block_view = (TextView) (convertView);
+		if (convertView == null) {
+			block_view = (EditText) layout_inflater.inflate(R.layout.paragraph, null);
+			block_view.setOnFocusChangeListener(update_focus);
+		} else {
+			LaTeXBlock old_block = (LaTeXBlock) convertView.getTag();
+			old_block.unbindView();
+			block_view.setTag(block);
+		}
+		block_view.setTag(block);
+		block.bound_view = block_view;
+		if (block.length() >= 2 && block.charAt(0) == '\n' && block.charAt(1) == '\n')
+			block_view.setText(block.subSequence(2, block.length()));
+		else
+			block_view.setText(block);
+		return block_view;
 	}
 
 }
