@@ -17,8 +17,6 @@ import android.view.View;
 import android.view.View.OnFocusChangeListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.TextView;
 
 /**
  * Adapter to bind to the LaTeX document
@@ -222,7 +220,7 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.LaTeXBlock> {
 		// Prepare the view
 		TextView block_view = (TextView) (convertView);
 		if (convertView == null) {
-			block_view = (EditText) layout_inflater.inflate(R.layout.paragraph, null);
+			block_view = (TextView) layout_inflater.inflate(R.layout.paragraph, null);
 			block_view.setOnFocusChangeListener(update_focus);
 		} else {
 			LaTeXBlock old_block = (LaTeXBlock) convertView.getTag();
