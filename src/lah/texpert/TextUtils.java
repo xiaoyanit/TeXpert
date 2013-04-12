@@ -9,10 +9,96 @@ import android.text.style.CharacterStyle;
 
 public class TextUtils {
 
-	private static void writeWhere(Parcel p, Spanned sp, Object o) {
-		p.writeInt(sp.getSpanStart(o));
-		p.writeInt(sp.getSpanEnd(o));
-		p.writeInt(sp.getSpanFlags(o));
+	private static Object sLock = new Object();
+
+	private static char[] sTemp = null;
+
+	public static void getChars(CharSequence s, int start, int end, char[] dest, int destoff) {
+		Class<? extends CharSequence> c = s.getClass();
+
+		if (c == String.class)
+			((String) s).getChars(start, end, dest, destoff);
+		else if (c == StringBuffer.class)
+			((StringBuffer) s).getChars(start, end, dest, destoff);
+		else if (c == StringBuilder.class)
+			((StringBuilder) s).getChars(start, end, dest, destoff);
+		else if (s instanceof GetChars)
+			((GetChars) s).getChars(start, end, dest, destoff);
+		else {
+			for (int i = start; i < end; i++)
+				dest[destoff++] = s.charAt(i);
+		}
+	}
+
+	public static int idealByteArraySize(int need) {
+		for (int i = 4; i < 32; i++)
+			if (need <= (1 << i) - 12)
+				return (1 << i) - 12;
+
+		return need;
+	}
+
+	public static int idealCharArraySize(int need) {
+		return idealByteArraySize(need * 2) / 2;
+	}
+
+	/**
+	 * Returns true if the string is null or 0-length.
+	 * 
+	 * @param str
+	 *            the string to be examined
+	 * @return true if str is null or zero length
+	 */
+	public static boolean isEmpty(CharSequence str) {
+		if (str == null || str.length() == 0)
+			return true;
+		else
+			return false;
+	}
+
+	static char[] obtain(int len) {
+		char[] buf;
+
+		synchronized (sLock) {
+			buf = sTemp;
+			sTemp = null;
+		}
+
+		if (buf == null || buf.length < len)
+			buf = new char[idealCharArraySize(len)];
+
+		return buf;
+	}
+
+	/**
+	 * Pack 2 int values into a long, useful as a return value for a range
+	 * 
+	 * @see #unpackRangeStartFromLong(long)
+	 * @see #unpackRangeEndFromLong(long)
+	 * @hide
+	 */
+	public static long packRangeInLong(int start, int end) {
+		return (((long) start) << 32) | end;
+	}
+
+	static void recycle(char[] temp) {
+		if (temp.length > 1000)
+			return;
+
+		synchronized (sLock) {
+			sTemp = temp;
+		}
+	}
+
+	public static CharSequence stringOrSpannedString(CharSequence source) {
+		if (source == null)
+			return null;
+		if (source instanceof SpannedString)
+			return source;
+		if (source instanceof Spanned)
+			return new SpannedString(source);
+
+		return source.toString();
 	}
 
 	/**
@@ -34,6 +120,28 @@ public class TextUtils {
 		recycle(temp);
 
 		return ret;
+	}
+
+	/**
+	 * Get the end value from a range packed in a long by {@link #packRangeInLong(int, int)}
+	 * 
+	 * @see #unpackRangeStartFromLong(long)
+	 * @see #packRangeInLong(int, int)
+	 * @hide
+	 */
+	public static int unpackRangeEndFromLong(long range) {
+		return (int) (range & 0x00000000FFFFFFFFL);
+	}
+
+	/**
+	 * Get the start value from a range packed in a long by {@link #packRangeInLong(int, int)}
+	 * 
+	 * @see #unpackRangeEndFromLong(long)
+	 * @see #packRangeInLong(int, int)
+	 * @hide
+	 */
+	public static int unpackRangeStartFromLong(long range) {
+		return (int) (range >>> 32);
 	}
 
 	/**
@@ -79,121 +187,13 @@ public class TextUtils {
 		}
 	}
 
-	public static CharSequence stringOrSpannedString(CharSequence source) {
-		if (source == null)
-			return null;
-		if (source instanceof SpannedString)
-			return source;
-		if (source instanceof Spanned)
-			return new SpannedString(source);
-
-		return source.toString();
-	}
-
-	static void recycle(char[] temp) {
-		if (temp.length > 1000)
-			return;
-
-		synchronized (sLock) {
-			sTemp = temp;
-		}
-	}
-
-	/**
-	 * Returns true if the string is null or 0-length.
-	 * 
-	 * @param str
-	 *            the string to be examined
-	 * @return true if str is null or zero length
-	 */
-	public static boolean isEmpty(CharSequence str) {
-		if (str == null || str.length() == 0)
-			return true;
-		else
-			return false;
-	}
-
-	/**
-	 * Pack 2 int values into a long, useful as a return value for a range
-	 * 
-	 * @see #unpackRangeStartFromLong(long)
-	 * @see #unpackRangeEndFromLong(long)
-	 * @hide
-	 */
-	public static long packRangeInLong(int start, int end) {
-		return (((long) start) << 32) | end;
-	}
-
-	/**
-	 * Get the start value from a range packed in a long by {@link #packRangeInLong(int, int)}
-	 * 
-	 * @see #unpackRangeEndFromLong(long)
-	 * @see #packRangeInLong(int, int)
-	 * @hide
-	 */
-	public static int unpackRangeStartFromLong(long range) {
-		return (int) (range >>> 32);
-	}
-
-	/**
-	 * Get the end value from a range packed in a long by {@link #packRangeInLong(int, int)}
-	 * 
-	 * @see #unpackRangeStartFromLong(long)
-	 * @see #packRangeInLong(int, int)
-	 * @hide
-	 */
-	public static int unpackRangeEndFromLong(long range) {
-		return (int) (range & 0x00000000FFFFFFFFL);
-	}
-
-	public static void getChars(CharSequence s, int start, int end, char[] dest, int destoff) {
-		Class<? extends CharSequence> c = s.getClass();
-
-		if (c == String.class)
-			((String) s).getChars(start, end, dest, destoff);
-		else if (c == StringBuffer.class)
-			((StringBuffer) s).getChars(start, end, dest, destoff);
-		else if (c == StringBuilder.class)
-			((StringBuilder) s).getChars(start, end, dest, destoff);
-		else if (s instanceof GetChars)
-			((GetChars) s).getChars(start, end, dest, destoff);
-		else {
-			for (int i = start; i < end; i++)
-				dest[destoff++] = s.charAt(i);
-		}
+	private static void writeWhere(Parcel p, Spanned sp, Object o) {
+		p.writeInt(sp.getSpanStart(o));
+		p.writeInt(sp.getSpanEnd(o));
+		p.writeInt(sp.getSpanFlags(o));
 	}
 
 	private TextUtils() { /* cannot be instantiated */
 	}
-
-	static char[] obtain(int len) {
-		char[] buf;
-
-		synchronized (sLock) {
-			buf = sTemp;
-			sTemp = null;
-		}
-
-		if (buf == null || buf.length < len)
-			buf = new char[idealCharArraySize(len)];
-
-		return buf;
-	}
-
-	public static int idealByteArraySize(int need) {
-		for (int i = 4; i < 32; i++)
-			if (need <= (1 << i) - 12)
-				return (1 << i) - 12;
-
-		return need;
-	}
-
-	public static int idealCharArraySize(int need) {
-		return idealByteArraySize(need * 2) / 2;
-	}
-
-	private static Object sLock = new Object();
-
-	private static char[] sTemp = null;
 
 }

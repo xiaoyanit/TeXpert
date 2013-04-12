@@ -14,17 +14,13 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.text.Editable;
 import android.text.Layout;
 import android.text.ParcelableSpan;
 import android.text.Selection;
-import android.text.SpanWatcher;
 import android.text.Spannable;
 import android.text.Spanned;
 import android.text.method.KeyListener;
-import android.text.style.EasyEditSpan;
 import android.text.style.SuggestionSpan;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.ActionMode;
 import android.view.ActionMode.Callback;
@@ -32,10 +28,8 @@ import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
@@ -55,8 +49,7 @@ public class Editor {
 	// Cursor Controllers.
 	InsertionPointCursorController mInsertionPointCursorController;
 	ActionMode mSelectionActionMode;
-	boolean mInsertionControllerEnabled;
-	boolean mSelectionControllerEnabled;
+	private boolean mInsertionControllerEnabled;
 
 	InputContentType mInputContentType = new InputContentType();
 	InputMethodState mInputMethodState = new InputMethodState();
@@ -88,20 +81,13 @@ public class Editor {
 	final Drawable[] mCursorDrawable = new Drawable[2];
 	int mCursorCount; // Current number of used mCursorDrawable: 0 (resource=0), 1 or 2 (split)
 
-	// private Drawable mSelectHandleLeft;
-	// private Drawable mSelectHandleRight;
 	private Drawable mSelectHandleCenter;
 
 	// Global listener that detects changes in the global position of the TextView
 	private PositionListener mPositionListener = new PositionListener();
 
 	float mLastDownPositionX, mLastDownPositionY;
-	Callback mCustomSelectionActionModeCallback;
-
-	// Set when this TextView gained focus with some text selected. Will start selection mode.
-	boolean mCreatedWithASelection;
-
-	private EasyEditSpanController mEasyEditSpanController;
+	Callback mCustonullCallback;
 
 	private Rect mTempRect;
 
@@ -125,9 +111,6 @@ public class Editor {
 			// with our own calls to it for managing selection.
 			// The action mode callback will set this back again when/if the action mode starts.
 			mTextView.setHasTransientState(false);
-
-			// We had an active selection from before, start the selection mode.
-			startSelectionActionMode();
 		}
 	}
 
@@ -162,7 +145,6 @@ public class Editor {
 
 		boolean enabled = windowSupportsHandles && mTextView.getLayout() != null;
 		mInsertionControllerEnabled = enabled && isCursorVisible();
-		mSelectionControllerEnabled = enabled && mTextView.textCanBeSelected();
 
 		if (!mInsertionControllerEnabled) {
 			hideInsertionPointCursorController();
@@ -170,10 +152,6 @@ public class Editor {
 				mInsertionPointCursorController.onDetached();
 				mInsertionPointCursorController = null;
 			}
-		}
-
-		if (!mSelectionControllerEnabled) {
-			stopSelectionActionMode();
 		}
 	}
 
@@ -188,18 +166,10 @@ public class Editor {
 	 */
 	void hideControllers() {
 		hideCursorControllers();
-		hideSpanControllers();
-	}
-
-	private void hideSpanControllers() {
-		if (mEasyEditSpanController != null) {
-			mEasyEditSpanController.hide();
-		}
 	}
 
 	private void hideCursorControllers() {
 		hideInsertionPointCursorController();
-		stopSelectionActionMode();
 	}
 
 	void onScreenStateChanged(int screenState) {
@@ -226,19 +196,7 @@ public class Editor {
 		}
 	}
 
-	/**
-	 * Unlike {@link TextView#textCanBeSelected()}, this method is based on the <i>current</i> state of the TextView.
-	 * textCanBeSelected() has to be true (this is one of the conditions to have a selection controller (see
-	 * {@link #prepareCursorControllers()}), but this is not sufficient.
-	 */
-	private boolean canSelectText() {
-		return hasSelectionController() && mTextView.getText().length() != 0;
-	}
-
 	private PositionListener getPositionListener() {
-		if (mPositionListener == null) {
-			mPositionListener = new PositionListener();
-		}
 		return mPositionListener;
 	}
 
@@ -287,15 +245,6 @@ public class Editor {
 		return true;
 	}
 
-	private boolean isOffsetVisible(int offset) {
-		Layout layout = mTextView.getLayout();
-		final int line = layout.getLineForOffset(offset);
-		final int lineBottom = layout.getLineBottom(line);
-		final int primaryHorizontal = (int) layout.getPrimaryHorizontal(offset);
-		return isPositionVisible(primaryHorizontal + mTextView.viewportToContentHorizontalOffset(), lineBottom
-				+ mTextView.viewportToContentVerticalOffset());
-	}
-
 	/**
 	 * Returns true if the screen coordinates position (x,y) corresponds to a character displayed in the view. Returns
 	 * false when the position is in the empty space of left/right of text.
@@ -319,44 +268,12 @@ public class Editor {
 		// Long press in empty space moves cursor and shows the Paste affordance if available.
 		if (!handled && !isPositionOnText(mLastDownPositionX, mLastDownPositionY) && mInsertionControllerEnabled) {
 			final int offset = mTextView.getOffsetForPosition(mLastDownPositionX, mLastDownPositionY);
-			stopSelectionActionMode();
 			Selection.setSelection((Spannable) mTextView.getText(), offset);
 			getInsertionController().showWithActionPopup();
 			handled = true;
 		}
-
-		if (!handled && mSelectionActionMode != null) {
-			// if (touchPositionIsInSelection()) {
-			// // Start a drag
-			// final int start = mTextView.getSelectionStart();
-			// final int end = mTextView.getSelectionEnd();
-			// CharSequence selectedText = mTextView.getTransformedText(start, end);
-			// ClipData data = ClipData.newPlainText(null, selectedText);
-			// DragLocalState localState = new DragLocalState(mTextView, start, end);
-			// mTextView.startDrag(data, null, localState, 0);
-			// stopSelectionActionMode();
-			// } else {
-			// getSelectionController().hide();
-			// selectCurrentWord();
-			// getSelectionController().show();
-			// }
-			handled = true;
-		}
-
-		// Start a new selection
-		if (!handled) {
-			handled = startSelectionActionMode();
-		}
-
 		return handled;
 	}
-
-	// private long getLastTouchOffsets() {
-	// SelectionModifierCursorController selectionController = getSelectionController();
-	// final int minOffset = selectionController.getMinTouchOffset();
-	// final int maxOffset = selectionController.getMaxTouchOffset();
-	// return TextUtils.packRangeInLong(minOffset, maxOffset);
-	// }
 
 	void onFocusChanged(boolean focused, int direction) {
 		mShowCursor = SystemClock.uptimeMillis();
@@ -365,14 +282,6 @@ public class Editor {
 		if (focused) {
 			int selStart = mTextView.getSelectionStart();
 			int selEnd = mTextView.getSelectionEnd();
-
-			// SelectAllOnFocus fields are highlighted and not selected. Do not start text selection
-			// mode for these, unless there was a specific selection already started.
-			final boolean isFocusHighlighted = mSelectAllOnFocus && selStart == 0
-					&& selEnd == mTextView.getText().length();
-
-			mCreatedWithASelection = mFrozenWithFocus && mTextView.hasSelection() && !isFocusHighlighted;
-
 			if (!mFrozenWithFocus || (selStart < 0 || selEnd < 0)) {
 				// If a tap was used to give focus to that view, move cursor at tap position.
 				// Has to be done before onTakeFocus, which can be overloaded.
@@ -412,35 +321,16 @@ public class Editor {
 			mFrozenWithFocus = false;
 			mSelectionMoved = false;
 
-			// if (null != null) {
-			// showError();
-			// }
-
 			makeBlink();
 		} else {
-			// if (null != null) {
-			// hideError();
-			// }
 			// Don't leave us in the middle of a batch edit.
 			mTextView.onEndBatchEdit();
-
-			// if (mTextView instanceof ExtractEditText) {
-			// // terminateTextSelectionMode removes selection, which we want to keep when
-			// // ExtractEditText goes out of focus.
-			// final int selStart = mTextView.getSelectionStart();
-			// final int selEnd = mTextView.getSelectionEnd();
-			// hideControllers();
-			// Selection.setSelection((Spannable) mTextView.getText(), selStart, selEnd);
-			// } else {
 			if (mTemporaryDetach)
 				mPreserveDetachedSelection = true;
 			hideControllers();
 			if (mTemporaryDetach)
 				mPreserveDetachedSelection = false;
 			downgradeEasyCorrectionSpans();
-			// }
-
-			// No need to create the controller
 		}
 	}
 
@@ -463,8 +353,6 @@ public class Editor {
 	}
 
 	void sendOnTextChanged(int start, int after) {
-		// updateSpellCheckSpans(start, start + after, false);
-
 		// Hide the controllers as soon as text is modified (typing, procedural...)
 		// We do not hide the span controllers, since they can be added when a new text is
 		// inserted into the text view (voice IME).
@@ -491,10 +379,6 @@ public class Editor {
 			}
 			// Order matters! Must be done before onParentLostFocus to rely on isShowingUp
 			hideControllers();
-			// if (mSuggestionsPopupWindow != null) {
-			// mSuggestionsPopupWindow.onParentLostFocus();
-			// }
-
 			// Don't leave us in the middle of a batch edit. Same as in onFocusChanged
 			ensureEndedBatchEdit();
 		}
@@ -778,68 +662,12 @@ public class Editor {
 		}
 	}
 
-	/**
-	 * @return true if the selection mode was actually started.
-	 */
-	boolean startSelectionActionMode() {
-		if (mSelectionActionMode != null) {
-			// Selection action mode is already started
-			return false;
-		}
-
-		if (!canSelectText() || !mTextView.requestFocus()) {
-			Log.w(TextView.LOG_TAG, "TextView does not support text selection. Action mode cancelled.");
-			return false;
-		}
-
-		if (!mTextView.hasSelection()) {
-			// There may already be a selection on device rotation
-		}
-
-		boolean willExtract = extractedTextModeWillBeStarted();
-
-		// Do not start the action mode when extracted text will show up full screen, which would
-		// immediately hide the newly created action bar and would be visually distracting.
-		if (!willExtract) {
-			// ActionMode.Callback actionModeCallback = new SelectionActionModeCallback();
-			// mSelectionActionMode = mTextView.startActionMode(actionModeCallback);
-		}
-
-		final boolean selectionStarted = mSelectionActionMode != null || willExtract;
-		if (selectionStarted && !mTextView.isTextSelectable() && mShowSoftInputOnFocus) {
-			// Show the IME to be able to replace text, except when selecting non editable text.
-			final InputMethodManager imm = (InputMethodManager) mTextView.getContext().getSystemService(
-					Context.INPUT_METHOD_SERVICE);
-			if (imm != null) {
-				imm.showSoftInput(mTextView, 0, null);
-			}
-		}
-
-		return selectionStarted;
-	}
-
 	private boolean extractedTextModeWillBeStarted() {
 		// if (!(mTextView instanceof ExtractEditText)) {
 		// final InputMethodManager imm = (InputMethodManager) mTextView.getContext().getSystemService(
 		// Context.INPUT_METHOD_SERVICE);
 		// return imm != null && imm.isFullscreenMode();
 		// }
-		return false;
-	}
-
-	/**
-	 * @return <code>true</code> if the cursor is inside an {@link SuggestionSpan} with
-	 *         {@link SuggestionSpan#FLAG_EASY_CORRECT} set.
-	 */
-	private boolean isCursorInsideEasyCorrectionSpan() {
-		Spannable spannable = (Spannable) mTextView.getText();
-		SuggestionSpan[] suggestionSpans = spannable.getSpans(mTextView.getSelectionStart(),
-				mTextView.getSelectionEnd(), SuggestionSpan.class);
-		for (int i = 0; i < suggestionSpans.length; i++) {
-			if ((suggestionSpans[i].getFlags() & SuggestionSpan.FLAG_EASY_CORRECT) != 0) {
-				return true;
-			}
-		}
 		return false;
 	}
 
@@ -852,18 +680,10 @@ public class Editor {
 			final int offset = mTextView.getOffsetForPosition(event.getX(), event.getY());
 			Selection.setSelection((Spannable) text, offset);
 			if (!extractedTextModeWillBeStarted()) {
-				if (isCursorInsideEasyCorrectionSpan()) {
-				} else if (hasInsertionController()) {
+				if (hasInsertionController()) {
 					getInsertionController().show();
 				}
 			}
-		}
-	}
-
-	protected void stopSelectionActionMode() {
-		if (mSelectionActionMode != null) {
-			// This will hide the null
-			mSelectionActionMode.finish();
 		}
 	}
 
@@ -872,13 +692,6 @@ public class Editor {
 	 */
 	boolean hasInsertionController() {
 		return mInsertionControllerEnabled;
-	}
-
-	/**
-	 * @return True if this view supports selection handles.
-	 */
-	boolean hasSelectionController() {
-		return mSelectionControllerEnabled;
 	}
 
 	InsertionPointCursorController getInsertionController() {
@@ -908,38 +721,6 @@ public class Editor {
 		final int left = (int) (horizontal) - mTempRect.left;
 		mCursorDrawable[cursorIndex].setBounds(left, top - mTempRect.top, left + width, bottom + mTempRect.bottom);
 	}
-
-	// /**
-	// * Called by the framework in response to a text auto-correction (such as fixing a typo using a a dictionnary)
-	// from
-	// * the current input method, provided by it calling {@link InputConnection#commitCorrection}
-	// * InputConnection.commitCorrection()}. The default implementation flashes the background of the corrected word to
-	// * provide feedback to the user.
-	// *
-	// * @param info
-	// * The auto correct info about the text that was corrected.
-	// */
-	// public void onCommitCorrection(CorrectionInfo info) {
-	// if (mCorrectionHighlighter == null) {
-	// mCorrectionHighlighter = new CorrectionHighlighter();
-	// } else {
-	// mCorrectionHighlighter.invalidate(false);
-	// }
-	//
-	// mCorrectionHighlighter.highlight(info);
-	// }
-
-	// void showSuggestions() {
-	// if (mSuggestionsPopupWindow == null) {
-	// mSuggestionsPopupWindow = new SuggestionsPopupWindow();
-	// }
-	// hideControllers();
-	// mSuggestionsPopupWindow.show();
-	// }
-
-	// boolean areSuggestionsShown() {
-	// return mSuggestionsPopupWindow != null && mSuggestionsPopupWindow.isShowing();
-	// }
 
 	void onScrollChanged() {
 		if (mPositionListener != null) {
@@ -1086,159 +867,6 @@ public class Editor {
 		if (mKeyListener != null) {
 			text.setSpan(mKeyListener, 0, textLength, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
 		}
-
-		if (mEasyEditSpanController == null) {
-			mEasyEditSpanController = new EasyEditSpanController();
-		}
-		text.setSpan(mEasyEditSpanController, 0, textLength, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-	}
-
-	/**
-	 * Controls the {@link EasyEditSpan} monitoring when it is added, and when the related pop-up should be displayed.
-	 */
-	class EasyEditSpanController implements SpanWatcher {
-
-		private static final int DISPLAY_TIMEOUT_MS = 3000; // 3 secs
-
-		private EasyEditPopupWindow mPopupWindow;
-
-		private Runnable mHidePopup;
-
-		@Override
-		public void onSpanAdded(Spannable text, Object span, int start, int end) {
-			if (span instanceof EasyEditSpan) {
-				if (mPopupWindow == null) {
-					mPopupWindow = new EasyEditPopupWindow();
-					mHidePopup = new Runnable() {
-						@Override
-						public void run() {
-							hide();
-						}
-					};
-				}
-
-				// Make sure there is only at most one EasyEditSpan in the text
-				if (mPopupWindow.mEasyEditSpan != null) {
-					text.removeSpan(mPopupWindow.mEasyEditSpan);
-				}
-
-				mPopupWindow.setEasyEditSpan((EasyEditSpan) span);
-
-				if (mTextView.getWindowVisibility() != View.VISIBLE) {
-					// The window is not visible yet, ignore the text change.
-					return;
-				}
-
-				if (mTextView.getLayout() == null) {
-					// The view has not been laid out yet, ignore the text change
-					return;
-				}
-
-				if (extractedTextModeWillBeStarted()) {
-					// The input is in extract mode. Do not handle the easy edit in
-					// the original TextView, as the ExtractEditText will do
-					return;
-				}
-
-				mPopupWindow.show();
-				mTextView.removeCallbacks(mHidePopup);
-				mTextView.postDelayed(mHidePopup, DISPLAY_TIMEOUT_MS);
-			}
-		}
-
-		@Override
-		public void onSpanRemoved(Spannable text, Object span, int start, int end) {
-			if (mPopupWindow != null && span == mPopupWindow.mEasyEditSpan) {
-				hide();
-			}
-		}
-
-		@Override
-		public void onSpanChanged(Spannable text, Object span, int previousStart, int previousEnd, int newStart,
-				int newEnd) {
-			if (mPopupWindow != null && span == mPopupWindow.mEasyEditSpan) {
-				text.removeSpan(mPopupWindow.mEasyEditSpan);
-			}
-		}
-
-		public void hide() {
-			if (mPopupWindow != null) {
-				mPopupWindow.hide();
-				mTextView.removeCallbacks(mHidePopup);
-			}
-		}
-	}
-
-	/**
-	 * Displays the actions associated to an {@link EasyEditSpan}. The pop-up is controlled by
-	 * {@link EasyEditSpanController}.
-	 */
-	private class EasyEditPopupWindow extends PinnedPopupWindow implements OnClickListener {
-		// private static final int POPUP_TEXT_LAYOUT = R.layout.text_edit_action_popup_text;
-		private TextView mDeleteTextView;
-		private EasyEditSpan mEasyEditSpan;
-
-		@Override
-		protected void createPopupWindow() {
-			// mPopupWindow = new PopupWindow(mTextView.getContext(), null,
-			// R.attr.textSelectHandleWindowStyle);
-			// mPopupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
-			// mPopupWindow.setClippingEnabled(true);
-		}
-
-		@Override
-		protected void initContentView() {
-			// LinearLayout linearLayout = new LinearLayout(mTextView.getContext());
-			// linearLayout.setOrientation(LinearLayout.HORIZONTAL);
-			// mContentView = linearLayout;
-			// mContentView.setBackgroundResource(R.drawable.text_edit_side_paste_window);
-			//
-			// LayoutInflater inflater = (LayoutInflater) mTextView.getContext().getSystemService(
-			// Context.LAYOUT_INFLATER_SERVICE);
-			//
-			// LayoutParams wrapContent = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-			// ViewGroup.LayoutParams.WRAP_CONTENT);
-			//
-			// mDeleteTextView = (TextView) inflater.inflate(POPUP_TEXT_LAYOUT, null);
-			// mDeleteTextView.setLayoutParams(wrapContent);
-			// mDeleteTextView.setText(R.string.delete);
-			// mDeleteTextView.setOnClickListener(this);
-			// mContentView.addView(mDeleteTextView);
-		}
-
-		public void setEasyEditSpan(EasyEditSpan easyEditSpan) {
-			mEasyEditSpan = easyEditSpan;
-		}
-
-		@Override
-		public void onClick(View view) {
-			if (view == mDeleteTextView) {
-				Editable editable = (Editable) mTextView.getText();
-				int start = editable.getSpanStart(mEasyEditSpan);
-				int end = editable.getSpanEnd(mEasyEditSpan);
-				if (start >= 0 && end >= 0) {
-					mTextView.deleteText_internal(start, end);
-				}
-			}
-		}
-
-		@Override
-		protected int getTextOffset() {
-			// Place the pop-up at the end of the span
-			Editable editable = (Editable) mTextView.getText();
-			return editable.getSpanEnd(mEasyEditSpan);
-		}
-
-		@Override
-		protected int getVerticalLocalPosition(int line) {
-			return mTextView.getLayout().getLineBottom(line);
-		}
-
-		@Override
-		protected int clipVertically(int positionY) {
-			// As we display the pop-up below the span, no vertical clipping is required.
-			return positionY;
-		}
 	}
 
 	private class PositionListener implements ViewTreeObserver.OnPreDrawListener {
@@ -1327,113 +955,6 @@ public class Editor {
 
 		public void onScrollChanged() {
 			mScrollHasChanged = true;
-		}
-	}
-
-	private abstract class PinnedPopupWindow implements TextViewPositionListener {
-		protected PopupWindow mPopupWindow;
-		protected ViewGroup mContentView;
-		int mPositionX, mPositionY;
-
-		protected abstract void createPopupWindow();
-
-		protected abstract void initContentView();
-
-		protected abstract int getTextOffset();
-
-		protected abstract int getVerticalLocalPosition(int line);
-
-		protected abstract int clipVertically(int positionY);
-
-		public PinnedPopupWindow() {
-			createPopupWindow();
-
-			// mPopupWindow.setWindowLayoutType(WindowManager.LayoutParams.TYPE_APPLICATION_SUB_PANEL);
-			mPopupWindow.setWidth(ViewGroup.LayoutParams.WRAP_CONTENT);
-			mPopupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
-
-			initContentView();
-
-			LayoutParams wrapContent = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-					ViewGroup.LayoutParams.WRAP_CONTENT);
-			mContentView.setLayoutParams(wrapContent);
-
-			mPopupWindow.setContentView(mContentView);
-		}
-
-		public void show() {
-			getPositionListener().addSubscriber(this, false /* offset is fixed */);
-
-			computeLocalPosition();
-
-			final PositionListener positionListener = getPositionListener();
-			updatePosition(positionListener.getPositionX(), positionListener.getPositionY());
-		}
-
-		protected void measureContent() {
-			final DisplayMetrics displayMetrics = mTextView.getResources().getDisplayMetrics();
-			mContentView.measure(
-					View.MeasureSpec.makeMeasureSpec(displayMetrics.widthPixels, View.MeasureSpec.AT_MOST),
-					View.MeasureSpec.makeMeasureSpec(displayMetrics.heightPixels, View.MeasureSpec.AT_MOST));
-		}
-
-		/*
-		 * The popup window will be horizontally centered on the getTextOffset() and vertically positioned according to
-		 * viewportToContentHorizontalOffset.
-		 * 
-		 * This method assumes that mContentView has properly been measured from its content.
-		 */
-		private void computeLocalPosition() {
-			measureContent();
-			final int width = mContentView.getMeasuredWidth();
-			final int offset = getTextOffset();
-			mPositionX = (int) (mTextView.getLayout().getPrimaryHorizontal(offset) - width / 2.0f);
-			mPositionX += mTextView.viewportToContentHorizontalOffset();
-
-			final int line = mTextView.getLayout().getLineForOffset(offset);
-			mPositionY = getVerticalLocalPosition(line);
-			mPositionY += mTextView.viewportToContentVerticalOffset();
-		}
-
-		private void updatePosition(int parentPositionX, int parentPositionY) {
-			int positionX = parentPositionX + mPositionX;
-			int positionY = parentPositionY + mPositionY;
-
-			positionY = clipVertically(positionY);
-
-			// Horizontal clipping
-			final DisplayMetrics displayMetrics = mTextView.getResources().getDisplayMetrics();
-			final int width = mContentView.getMeasuredWidth();
-			positionX = Math.min(displayMetrics.widthPixels - width, positionX);
-			positionX = Math.max(0, positionX);
-
-			if (isShowing()) {
-				mPopupWindow.update(positionX, positionY, -1, -1);
-			} else {
-				mPopupWindow.showAtLocation(mTextView, Gravity.NO_GRAVITY, positionX, positionY);
-			}
-		}
-
-		public void hide() {
-			mPopupWindow.dismiss();
-			getPositionListener().removeSubscriber(this);
-		}
-
-		@Override
-		public void updatePosition(int parentPositionX, int parentPositionY, boolean parentPositionChanged,
-				boolean parentScrolled) {
-			// Either parentPositionChanged or parentScrolled is true, check if still visible
-			if (isShowing() && isOffsetVisible(getTextOffset())) {
-				if (parentScrolled)
-					computeLocalPosition();
-				updatePosition(parentPositionX, parentPositionY);
-			} else {
-				hide();
-			}
-		}
-
-		public boolean isShowing() {
-			return mPopupWindow.isShowing();
 		}
 	}
 

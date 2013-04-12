@@ -53,13 +53,10 @@ import android.util.AttributeSet;
 import android.util.FloatMath;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.ActionMode;
 import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewDebug;
@@ -2072,14 +2069,6 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 			changed = bringTextIntoView();
 		}
 
-		// This has to be checked here since:
-		// - onFocusChanged cannot start it when focus is given to a view with selected text (after
-		// a screen rotation) since layout is not yet initialized at that point.
-		if (mEditor.mCreatedWithASelection) {
-			mEditor.startSelectionActionMode();
-			mEditor.mCreatedWithASelection = false;
-		}
-
 		getViewTreeObserver().removeOnPreDrawListener(this);
 		mPreDrawRegistered = false;
 
@@ -2423,7 +2412,6 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 						state.handleUpEvent(event);
 					}
 					if (event.isTracking() && !event.isCanceled()) {
-						stopSelectionActionMode();
 						return true;
 					}
 				}
@@ -2580,7 +2568,6 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 		// Has to be done on key down (and not on key up) to correctly be intercepted.
 		case KeyEvent.KEYCODE_BACK:
 			if (mEditor.mSelectionActionMode != null) {
-				stopSelectionActionMode();
 				return -1;
 			}
 			break;
@@ -4346,7 +4333,7 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 	 * {@link Editor#prepareCursorControllers()}), but this is not sufficient.
 	 */
 	private boolean canSelectText() {
-		return mText.length() != 0 && mEditor.hasSelectionController();
+		return mText.length() != 0;
 	}
 
 	/**
@@ -4411,12 +4398,10 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 		case ID_CUT:
 			setPrimaryClip(ClipData.newPlainText(null, getTransformedText(min, max)));
 			deleteText_internal(min, max);
-			stopSelectionActionMode();
 			return true;
 
 		case ID_COPY:
 			setPrimaryClip(ClipData.newPlainText(null, getTransformedText(min, max)));
-			stopSelectionActionMode();
 			return true;
 		}
 		return false;
@@ -4453,43 +4438,6 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 		if (true) {
 			mEditor.onScrollChanged();
 		}
-	}
-
-	/**
-	 * If provided, this ActionMode.Callback will be used to create the ActionMode when text selection is initiated in
-	 * this View.
-	 * 
-	 * The standard implementation populates the menu with a subset of Select All, Cut, Copy and Paste actions,
-	 * depending on what this View supports.
-	 * 
-	 * A custom implementation can add new entries in the default menu in its
-	 * {@link android.view.ActionMode.Callback#onPrepareActionMode(ActionMode, Menu)} method. The default actions can
-	 * also be removed from the menu using {@link Menu#removeItem(int)} and passing {@link android.R.id#selectAll},
-	 * {@link android.R.id#cut}, {@link android.R.id#copy} or {@link android.R.id#paste} ids as parameters.
-	 * 
-	 * Returning false from {@link android.view.ActionMode.Callback#onCreateActionMode(ActionMode, Menu)} will prevent
-	 * the action mode from being started.
-	 * 
-	 * Action click events should be handled by the custom implementation of
-	 * {@link android.view.ActionMode.Callback#onActionItemClicked(ActionMode, MenuItem)}.
-	 * 
-	 * Note that text selection mode is not started when a TextView receives focus and the
-	 * {@link android.R.attr#selectAllOnFocus} flag has been set. The content is highlighted in that case, to allow for
-	 * quick replacement.
-	 */
-	public void setCustomSelectionActionModeCallback(ActionMode.Callback actionModeCallback) {
-		mEditor.mCustomSelectionActionModeCallback = actionModeCallback;
-	}
-
-	/**
-	 * Retrieves the value set in {@link #setCustomSelectionActionModeCallback}. Default is }
-	 * 
-	 * /**
-	 * 
-	 * @hide
-	 */
-	protected void stopSelectionActionMode() {
-		mEditor.stopSelectionActionMode();
 	}
 
 	boolean canCut() {
@@ -4587,7 +4535,6 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
 					}
 				}
 			}
-			stopSelectionActionMode();
 			LAST_CUT_OR_COPY_TIME = 0;
 		}
 	}
