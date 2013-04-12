@@ -2,19 +2,16 @@ package lah.texpert;
 
 import lah.texpert.TextView.OnEditorActionListener;
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipData.Item;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -46,7 +43,6 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
-import android.view.inputmethod.CorrectionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
@@ -59,11 +55,7 @@ import android.widget.PopupWindow;
  * 
  * @hide
  */
-@SuppressLint("NewApi")
-@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
 public class Editor {
-	@SuppressWarnings("unused")
-	private static final String TAG = "Editor";
 
 	static final int BLINK = 500;
 	private static final float[] TEMP_POSITION = new float[2];
@@ -77,10 +69,9 @@ public class Editor {
 	boolean mSelectionControllerEnabled;
 
 	// Used to highlight a word when it is corrected by the IME
-	CorrectionHighlighter mCorrectionHighlighter;
-
-	InputContentType mInputContentType;
-	InputMethodState mInputMethodState;
+	// CorrectionHighlighter mCorrectionHighlighter;
+	InputContentType mInputContentType = new InputContentType();
+	InputMethodState mInputMethodState = new InputMethodState();
 
 	// DisplayList[] mTextDisplayLists;
 	int mLastLayoutHeight;
@@ -102,24 +93,10 @@ public class Editor {
 	boolean mSelectAllOnFocus;
 	boolean mTextIsSelectable;
 
-	// CharSequence mError;
-	// boolean mErrorWasChanged;
-	// ErrorPopup mErrorPopup;
-
-	// /**
-	// * This flag is set if the TextView tries to display an error before it is attached to the window (so its position
-	// * is still unknown). It causes the error to be shown later, when onAttachedToWindow() is called.
-	// */
-	// boolean mShowErrorAfterAttach;
-
 	boolean mInBatchEditControllers;
 	boolean mShowSoftInputOnFocus = true;
 	boolean mPreserveDetachedSelection;
 	boolean mTemporaryDetach;
-
-	// SuggestionsPopupWindow mSuggestionsPopupWindow;
-	// SuggestionRangeSpan mSuggestionRangeSpan;
-	// Runnable mShowSuggestionRunnable;
 
 	final Drawable[] mCursorDrawable = new Drawable[2];
 	int mCursorCount; // Current number of used mCursorDrawable: 0 (resource=0), 1 or 2 (split)
@@ -129,7 +106,7 @@ public class Editor {
 	private Drawable mSelectHandleCenter;
 
 	// Global listener that detects changes in the global position of the TextView
-	private PositionListener mPositionListener;
+	private PositionListener mPositionListener = new PositionListener();
 
 	float mLastDownPositionX, mLastDownPositionY;
 	Callback mCustomSelectionActionModeCallback;
@@ -139,23 +116,15 @@ public class Editor {
 
 	private EasyEditSpanController mEasyEditSpanController;
 
-	// WordIterator mWordIterator;
-
 	private Rect mTempRect;
 
 	private TextView mTextView;
-
-	// private final UserDictionaryListener mUserDictionaryListener = new UserDictionaryListener();
 
 	Editor(TextView textView) {
 		mTextView = textView;
 	}
 
 	void onAttachedToWindow() {
-		// if (mShowErrorAfterAttach) {
-		// showError();
-		// mShowErrorAfterAttach = false;
-		// }
 		mTemporaryDetach = false;
 
 		final ViewTreeObserver observer = mTextView.getViewTreeObserver();
@@ -182,10 +151,6 @@ public class Editor {
 	}
 
 	void onDetachedFromWindow() {
-		// if (null != null) {
-		// hideError();
-		// }
-
 		if (mBlink != null) {
 			mBlink.removeCallbacks(mBlink);
 		}
@@ -198,35 +163,10 @@ public class Editor {
 			mSelectionModifierCursorController.onDetached();
 		}
 
-		// if (mShowSuggestionRunnable != null) {
-		// mTextView.removeCallbacks(mShowSuggestionRunnable);
-		// }
-
-		// invalidateTextDisplayList();
-		//
-		// if (null != null) {
-		// null.closeSession();
-		// // Forces the creation of a new SpellChecker next time this window is created.
-		// // Will handle the cases where the settings has been changed in the meantime.
-		// null = null;
-		// }
-
 		mPreserveDetachedSelection = true;
 		hideControllers();
 		mPreserveDetachedSelection = false;
 		mTemporaryDetach = false;
-	}
-
-	void createInputContentTypeIfNeeded() {
-		if (mInputContentType == null) {
-			mInputContentType = new InputContentType();
-		}
-	}
-
-	void createInputMethodStateIfNeeded() {
-		if (mInputMethodState == null) {
-			mInputMethodState = new InputMethodState();
-		}
 	}
 
 	boolean isCursorVisible() {
@@ -286,10 +226,6 @@ public class Editor {
 	}
 
 	private void hideCursorControllers() {
-		// if (mSuggestionsPopupWindow != null && !mSuggestionsPopupWindow.isShowingUp()) {
-		// // Should be done before hide insertion point controller since it triggers a show of it
-		// mSuggestionsPopupWindow.hide();
-		// }
 		hideInsertionPointCursorController();
 		stopSelectionActionMode();
 	}
@@ -318,56 +254,6 @@ public class Editor {
 		}
 	}
 
-	void adjustInputType(boolean password, boolean passwordInputType, boolean webPasswordInputType,
-			boolean numberPasswordInputType) {
-		// mInputType has been set from inputType, possibly modified by mInputMethod.
-		// Specialize mInputType to [web]password if we have a text class and the original input
-		// type was a password.
-		if ((mInputType & EditorInfo.TYPE_MASK_CLASS) == EditorInfo.TYPE_CLASS_TEXT) {
-			if (password || passwordInputType) {
-				mInputType = (mInputType & ~(EditorInfo.TYPE_MASK_VARIATION)) | EditorInfo.TYPE_TEXT_VARIATION_PASSWORD;
-			}
-			if (webPasswordInputType) {
-				mInputType = (mInputType & ~(EditorInfo.TYPE_MASK_VARIATION))
-						| EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD;
-			}
-		} else if ((mInputType & EditorInfo.TYPE_MASK_CLASS) == EditorInfo.TYPE_CLASS_NUMBER) {
-			if (numberPasswordInputType) {
-				mInputType = (mInputType & ~(EditorInfo.TYPE_MASK_VARIATION))
-						| EditorInfo.TYPE_NUMBER_VARIATION_PASSWORD;
-			}
-		}
-	}
-
-	// private void chooseSize(PopupWindow pop, CharSequence text, TextView tv) {
-	// int wid = tv.getPaddingLeft() + tv.getPaddingRight();
-	// int ht = tv.getPaddingTop() + tv.getPaddingBottom();
-	//
-	// int defaultWidthInPixels = 10;
-	// // mTextView.getResources().getDimensionPixelSize(
-	// // com.android.internal.R.dimen.textview_error_popup_default_width);
-	// Layout l = new StaticLayout(text, tv.getPaint(), defaultWidthInPixels, Layout.Alignment.ALIGN_NORMAL, 1, 0,
-	// true);
-	// float max = 0;
-	// for (int i = 0; i < l.getLineCount(); i++) {
-	// max = Math.max(max, l.getLineWidth(i));
-	// }
-	//
-	// /*
-	// * Now set the popup size to be big enough for the text plus the border capped to DEFAULT_MAX_POPUP_WIDTH
-	// */
-	// pop.setWidth(wid + (int) Math.ceil(max));
-	// pop.setHeight(ht + l.getHeight());
-	// }
-
-	void setFrame() {
-		// if (mErrorPopup != null) {
-		// TextView tv = (TextView) mErrorPopup.getContentView();
-		// chooseSize(mErrorPopup, null, tv);
-		// mErrorPopup.update(mTextView, getErrorX(), getErrorY(), mErrorPopup.getWidth(), mErrorPopup.getHeight());
-		// }
-	}
-
 	/**
 	 * Unlike {@link TextView#textCanBeSelected()}, this method is based on the <i>current</i> state of the TextView.
 	 * textCanBeSelected() has to be true (this is one of the conditions to have a selection controller (see
@@ -376,24 +262,6 @@ public class Editor {
 	private boolean canSelectText() {
 		return hasSelectionController() && mTextView.getText().length() != 0;
 	}
-
-	// /**
-	// * It would be better to rely on the input type for everything. A password inputType should have a password
-	// * transformation. We should hence use isPasswordInputType instead of this method.
-	// *
-	// * We should: - Call setInputType in setKeyListener instead of changing the input type directly (which would
-	// install
-	// * the correct transformation). - Refuse the installation of a non-password transformation in setTransformation if
-	// * the input type is password.
-	// *
-	// * However, this is like this for legacy reasons and we cannot break existing apps. This method is useful since it
-	// * matches what the user can see (obfuscated text or not).
-	// *
-	// * @return true if the current transformation method is of the password type.
-	// */
-	// private boolean hasPasswordTransformationMethod() {
-	// return mTextView.getTransformationMethod() instanceof PasswordTransformationMethod;
-	// }
 
 	/**
 	 * Adjusts selection to the word under last touch offset. Return true if the operation was successfully performed.
@@ -412,46 +280,6 @@ public class Editor {
 			return false;
 		return false;
 	}
-
-	void onLocaleChanged() {
-		// Will be re-created on demand in getWordIterator with the proper new locale
-		// mWordIterator = null;
-	}
-
-	// /**
-	// * @hide
-	// */
-	// public WordIterator getWordIterator() {
-	// if (mWordIterator == null) {
-	// mWordIterator = new WordIterator(mTextView.getTextServicesLocale());
-	// }
-	// return mWordIterator;
-	// }
-
-	// private long getCharRange(int offset) {
-	// final int textLength = mTextView.getText().length();
-	// if (offset + 1 < textLength) {
-	// final char currentChar = mTextView.getText().charAt(offset);
-	// final char nextChar = mTextView.getText().charAt(offset + 1);
-	// if (Character.isSurrogatePair(currentChar, nextChar)) {
-	// return TextUtils.packRangeInLong(offset, offset + 2);
-	// }
-	// }
-	// if (offset < textLength) {
-	// return TextUtils.packRangeInLong(offset, offset + 1);
-	// }
-	// if (offset - 2 >= 0) {
-	// final char previousChar = mTextView.getText().charAt(offset - 1);
-	// final char previousPreviousChar = mTextView.getText().charAt(offset - 2);
-	// if (Character.isSurrogatePair(previousPreviousChar, previousChar)) {
-	// return TextUtils.packRangeInLong(offset - 2, offset);
-	// }
-	// }
-	// if (offset - 1 >= 0) {
-	// return TextUtils.packRangeInLong(offset - 1, offset);
-	// }
-	// return TextUtils.packRangeInLong(offset, offset);
-	// }
 
 	private boolean touchPositionIsInSelection() {
 		int selectionStart = mTextView.getSelectionStart();
@@ -893,9 +721,9 @@ public class Editor {
 			// if (MetaKeyKeyListener.getMetaState(content, MetaKeyKeyListener.META_SELECTING) != 0) {
 			// outText.flags |= ExtractedText.FLAG_SELECTING;
 			// }
-			if (mTextView.isSingleLine()) {
-				outText.flags |= ExtractedText.FLAG_SINGLE_LINE;
-			}
+			// if (mTextView.isSingleLine()) {
+			// outText.flags |= ExtractedText.FLAG_SINGLE_LINE;
+			// }
 			outText.startOffset = 0;
 			outText.selectionStart = mTextView.getSelectionStart();
 			outText.selectionEnd = mTextView.getSelectionEnd();
@@ -991,10 +819,6 @@ public class Editor {
 			}
 		}
 
-		if (mCorrectionHighlighter != null) {
-			mCorrectionHighlighter.draw(canvas, cursorOffsetVertical);
-		}
-
 		if (highlight != null && selectionStart == selectionEnd && mCursorCount > 0) {
 			drawCursor(canvas, cursorOffsetVertical);
 			// Rely on the drawable entirely, do not draw the cursor line.
@@ -1002,138 +826,9 @@ public class Editor {
 			highlight = null;
 		}
 
-		// if (mTextView.canHaveDisplayList() && canvas.isHardwareAccelerated()) {
-		// drawHardwareAccelerated(canvas, layout, highlight, highlightPaint, cursorOffsetVertical);
-		// } else {
+		// TODO L.A.H. Unfortunately, hardware acceleration is not publicly accessible
 		layout.draw(canvas, highlight, highlightPaint, cursorOffsetVertical);
-		// }
 	}
-
-	// private void drawHardwareAccelerated(Canvas canvas, Layout layout, Path highlight, Paint highlightPaint,
-	// int cursorOffsetVertical) {
-	// final long lineRange = layout.getLineRangeForDraw(canvas);
-	// int firstLine = TextUtils.unpackRangeStartFromLong(lineRange);
-	// int lastLine = TextUtils.unpackRangeEndFromLong(lineRange);
-	// if (lastLine < 0)
-	// return;
-	//
-	// layout.drawBackground(canvas, highlight, highlightPaint, cursorOffsetVertical, firstLine, lastLine);
-	//
-	// if (layout instanceof DynamicLayout) {
-	// if (mTextDisplayLists == null) {
-	// mTextDisplayLists = new DisplayList[ArrayUtils.idealObjectArraySize(0)];
-	// }
-	//
-	// // If the height of the layout changes (usually when inserting or deleting a line,
-	// // but could be changes within a span), invalidate everything. We could optimize
-	// // more aggressively (for example, adding offsets to blocks) but it would be more
-	// // complex and we would only get the benefit in some cases.
-	// int layoutHeight = layout.getHeight();
-	// if (mLastLayoutHeight != layoutHeight) {
-	// invalidateTextDisplayList();
-	// mLastLayoutHeight = layoutHeight;
-	// }
-	//
-	// DynamicLayout dynamicLayout = (DynamicLayout) layout;
-	// int[] blockEndLines = dynamicLayout.getBlockEndLines();
-	// int[] blockIndices = dynamicLayout.getBlockIndices();
-	// final int numberOfBlocks = dynamicLayout.getNumberOfBlocks();
-	//
-	// int endOfPreviousBlock = -1;
-	// int searchStartIndex = 0;
-	// for (int i = 0; i < numberOfBlocks; i++) {
-	// int blockEndLine = blockEndLines[i];
-	// int blockIndex = blockIndices[i];
-	//
-	// final boolean blockIsInvalid = blockIndex == DynamicLayout.INVALID_BLOCK_INDEX;
-	// if (blockIsInvalid) {
-	// blockIndex = getAvailableDisplayListIndex(blockIndices, numberOfBlocks, searchStartIndex);
-	// // Note how dynamic layout's internal block indices get updated from Editor
-	// blockIndices[i] = blockIndex;
-	// searchStartIndex = blockIndex + 1;
-	// }
-	//
-	// DisplayList blockDisplayList = mTextDisplayLists[blockIndex];
-	// if (blockDisplayList == null) {
-	// blockDisplayList = mTextDisplayLists[blockIndex] = mTextView.getHardwareRenderer()
-	// .createDisplayList("Text " + blockIndex);
-	// } else {
-	// if (blockIsInvalid)
-	// blockDisplayList.invalidate();
-	// }
-	//
-	// if (!blockDisplayList.isValid()) {
-	// final int blockBeginLine = endOfPreviousBlock + 1;
-	// final int top = layout.getLineTop(blockBeginLine);
-	// final int bottom = layout.getLineBottom(blockEndLine);
-	// int left = 0;
-	// int right = mTextView.getWidth();
-	// if (mTextView.getHorizontallyScrolling()) {
-	// float min = Float.MAX_VALUE;
-	// float max = Float.MIN_VALUE;
-	// for (int line = blockBeginLine; line <= blockEndLine; line++) {
-	// min = Math.min(min, layout.getLineLeft(line));
-	// max = Math.max(max, layout.getLineRight(line));
-	// }
-	// left = (int) min;
-	// right = (int) (max + 0.5f);
-	// }
-	//
-	// final HardwareCanvas hardwareCanvas = blockDisplayList.start();
-	// try {
-	// // Tighten the bounds of the viewport to the actual text size
-	// hardwareCanvas.setViewport(right - left, bottom - top);
-	// // The dirty rect should always be null for a display list
-	// hardwareCanvas.onPreDraw(null);
-	// // drawText is always relative to TextView's origin, this translation brings
-	// // this range of text back to the top left corner of the viewport
-	// hardwareCanvas.translate(-left, -top);
-	// layout.drawText(hardwareCanvas, blockBeginLine, blockEndLine);
-	// // No need to untranslate, previous context is popped after drawDisplayList
-	// } finally {
-	// hardwareCanvas.onPostDraw();
-	// blockDisplayList.end();
-	// blockDisplayList.setLeftTopRightBottom(left, top, right, bottom);
-	// // Same as drawDisplayList below, handled by our TextView's parent
-	// blockDisplayList.setClipChildren(false);
-	// }
-	// }
-	//
-	// ((HardwareCanvas) canvas).drawDisplayList(blockDisplayList, null, 0 /*
-	// * no child clipping, our TextView
-	// * parent enforces it
-	// */);
-	//
-	// endOfPreviousBlock = blockEndLine;
-	// }
-	// } else {
-	// // Boring layout is used for empty and hint text
-	// layout.drawText(canvas, firstLine, lastLine);
-	// }
-	// }
-
-	// private int getAvailableDisplayListIndex(int[] blockIndices, int numberOfBlocks, int searchStartIndex) {
-	// int length = mTextDisplayLists.length;
-	// for (int i = searchStartIndex; i < length; i++) {
-	// boolean blockIndexFound = false;
-	// for (int j = 0; j < numberOfBlocks; j++) {
-	// if (blockIndices[j] == i) {
-	// blockIndexFound = true;
-	// break;
-	// }
-	// }
-	// if (blockIndexFound)
-	// continue;
-	// return i;
-	// }
-	//
-	// // No available index found, the pool has to grow
-	// int newSize = ArrayUtils.idealIntArraySize(length + 1);
-	// DisplayList[] displayLists = new DisplayList[newSize];
-	// System.arraycopy(mTextDisplayLists, 0, displayLists, 0, length);
-	// mTextDisplayLists = displayLists;
-	// return length;
-	// }
 
 	private void drawCursor(Canvas canvas, int cursorOffsetVertical) {
 		final boolean translate = cursorOffsetVertical != 0;
@@ -1146,49 +841,6 @@ public class Editor {
 			canvas.translate(0, -cursorOffsetVertical);
 	}
 
-	// /**
-	// * Invalidates all the sub-display lists that overlap the specified character range
-	// */
-	// void invalidateTextDisplayList(Layout layout, int start, int end) {
-	// if (mTextDisplayLists != null && layout instanceof DynamicLayout) {
-	// final int firstLine = layout.getLineForOffset(start);
-	// final int lastLine = layout.getLineForOffset(end);
-	//
-	// DynamicLayout dynamicLayout = (DynamicLayout) layout;
-	// int[] blockEndLines = dynamicLayout.getBlockEndLines();
-	// int[] blockIndices = dynamicLayout.getBlockIndices();
-	// final int numberOfBlocks = dynamicLayout.getNumberOfBlocks();
-	//
-	// int i = 0;
-	// // Skip the blocks before firstLine
-	// while (i < numberOfBlocks) {
-	// if (blockEndLines[i] >= firstLine)
-	// break;
-	// i++;
-	// }
-	//
-	// // Invalidate all subsequent blocks until lastLine is passed
-	// while (i < numberOfBlocks) {
-	// final int blockIndex = blockIndices[i];
-	// if (blockIndex != DynamicLayout.INVALID_BLOCK_INDEX) {
-	// mTextDisplayLists[blockIndex].invalidate();
-	// }
-	// if (blockEndLines[i] >= lastLine)
-	// break;
-	// i++;
-	// }
-	// }
-	// }
-
-	// void invalidateTextDisplayList() {
-	// if (mTextDisplayLists != null) {
-	// for (int i = 0; i < mTextDisplayLists.length; i++) {
-	// if (mTextDisplayLists[i] != null)
-	// mTextDisplayLists[i].invalidate();
-	// }
-	// }
-	// }
-
 	void updateCursorsPositions() {
 		if (mTextView.mCursorDrawableRes == 0) {
 			mCursorCount = 0;
@@ -1196,13 +848,13 @@ public class Editor {
 		}
 
 		Layout layout = mTextView.getLayout();
-		// Layout hintLayout = mTextView.getHintLayout();
+
 		final int offset = mTextView.getSelectionStart();
 		final int line = layout.getLineForOffset(offset);
 		final int top = layout.getLineTop(line);
 		final int bottom = layout.getLineTop(line + 1);
 
-		// mCursorCount = layout.isLevelBoundary(offset) ? 2 : 1;
+		mCursorCount = 1;
 
 		int middle = bottom;
 		if (mCursorCount == 2) {
@@ -1210,20 +862,12 @@ public class Editor {
 			middle = (top + bottom) >> 1;
 		}
 
-		// updateCursorPosition(0, top, middle, getPrimaryHorizontal(layout, hintLayout, offset));
+		updateCursorPosition(0, top, middle, layout.getPrimaryHorizontal(offset));
 
 		if (mCursorCount == 2) {
 			updateCursorPosition(1, middle, bottom, layout.getSecondaryHorizontal(offset));
 		}
 	}
-
-	// private float getPrimaryHorizontal(Layout layout, Layout hintLayout, int offset) {
-	// if (TextUtils.isEmpty(layout.getText()) && hintLayout != null && !TextUtils.isEmpty(hintLayout.getText())) {
-	// return hintLayout.getPrimaryHorizontal(offset);
-	// } else {
-	// return layout.getPrimaryHorizontal(offset);
-	// }
-	// }
 
 	/**
 	 * @return true if the selection mode was actually started.
@@ -1278,18 +922,18 @@ public class Editor {
 		return false;
 	}
 
-	/**
-	 * @return <code>true</code> if the cursor/current selection overlaps a {@link SuggestionSpan}.
-	 */
-	private boolean isCursorInsideSuggestionSpan() {
-		CharSequence text = mTextView.getText();
-		if (!(text instanceof Spannable))
-			return false;
-
-		SuggestionSpan[] suggestionSpans = ((Spannable) text).getSpans(mTextView.getSelectionStart(),
-				mTextView.getSelectionEnd(), SuggestionSpan.class);
-		return (suggestionSpans.length > 0);
-	}
+	// /**
+	// * @return <code>true</code> if the cursor/current selection overlaps a {@link SuggestionSpan}.
+	// */
+	// private boolean isCursorInsideSuggestionSpan() {
+	// CharSequence text = mTextView.getText();
+	// if (!(text instanceof Spannable))
+	// return false;
+	//
+	// SuggestionSpan[] suggestionSpans = ((Spannable) text).getSpans(mTextView.getSelectionStart(),
+	// mTextView.getSelectionEnd(), SuggestionSpan.class);
+	// return (suggestionSpans.length > 0);
+	// }
 
 	/**
 	 * @return <code>true</code> if the cursor is inside an {@link SuggestionSpan} with
@@ -1399,24 +1043,25 @@ public class Editor {
 		mCursorDrawable[cursorIndex].setBounds(left, top - mTempRect.top, left + width, bottom + mTempRect.bottom);
 	}
 
-	/**
-	 * Called by the framework in response to a text auto-correction (such as fixing a typo using a a dictionnary) from
-	 * the current input method, provided by it calling {@link InputConnection#commitCorrection}
-	 * InputConnection.commitCorrection()}. The default implementation flashes the background of the corrected word to
-	 * provide feedback to the user.
-	 * 
-	 * @param info
-	 *            The auto correct info about the text that was corrected.
-	 */
-	public void onCommitCorrection(CorrectionInfo info) {
-		if (mCorrectionHighlighter == null) {
-			mCorrectionHighlighter = new CorrectionHighlighter();
-		} else {
-			mCorrectionHighlighter.invalidate(false);
-		}
-
-		mCorrectionHighlighter.highlight(info);
-	}
+	// /**
+	// * Called by the framework in response to a text auto-correction (such as fixing a typo using a a dictionnary)
+	// from
+	// * the current input method, provided by it calling {@link InputConnection#commitCorrection}
+	// * InputConnection.commitCorrection()}. The default implementation flashes the background of the corrected word to
+	// * provide feedback to the user.
+	// *
+	// * @param info
+	// * The auto correct info about the text that was corrected.
+	// */
+	// public void onCommitCorrection(CorrectionInfo info) {
+	// if (mCorrectionHighlighter == null) {
+	// mCorrectionHighlighter = new CorrectionHighlighter();
+	// } else {
+	// mCorrectionHighlighter.invalidate(false);
+	// }
+	//
+	// mCorrectionHighlighter.highlight(info);
+	// }
 
 	// void showSuggestions() {
 	// if (mSuggestionsPopupWindow == null) {
@@ -1501,7 +1146,7 @@ public class Editor {
 
 	private DragShadowBuilder getTextThumbnailBuilder(CharSequence text) {
 		// TextView shadowView = (TextView) View.inflate(mTextView.getContext(),
-		// com.android.internal.R.layout.text_drag_thumbnail, null);
+		// R.layout.text_drag_thumbnail, null);
 
 		// if (shadowView == null) {
 		// throw new IllegalArgumentException("Unable to inflate text drag thumbnail");
@@ -1691,14 +1336,14 @@ public class Editor {
 	 * {@link EasyEditSpanController}.
 	 */
 	private class EasyEditPopupWindow extends PinnedPopupWindow implements OnClickListener {
-		// private static final int POPUP_TEXT_LAYOUT = com.android.internal.R.layout.text_edit_action_popup_text;
+		// private static final int POPUP_TEXT_LAYOUT = R.layout.text_edit_action_popup_text;
 		private TextView mDeleteTextView;
 		private EasyEditSpan mEasyEditSpan;
 
 		@Override
 		protected void createPopupWindow() {
 			// mPopupWindow = new PopupWindow(mTextView.getContext(), null,
-			// com.android.internal.R.attr.textSelectHandleWindowStyle);
+			// R.attr.textSelectHandleWindowStyle);
 			// mPopupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
 			// mPopupWindow.setClippingEnabled(true);
 		}
@@ -1708,7 +1353,7 @@ public class Editor {
 			// LinearLayout linearLayout = new LinearLayout(mTextView.getContext());
 			// linearLayout.setOrientation(LinearLayout.HORIZONTAL);
 			// mContentView = linearLayout;
-			// mContentView.setBackgroundResource(com.android.internal.R.drawable.text_edit_side_paste_window);
+			// mContentView.setBackgroundResource(R.drawable.text_edit_side_paste_window);
 			//
 			// LayoutInflater inflater = (LayoutInflater) mTextView.getContext().getSystemService(
 			// Context.LAYOUT_INFLATER_SERVICE);
@@ -1718,7 +1363,7 @@ public class Editor {
 			//
 			// mDeleteTextView = (TextView) inflater.inflate(POPUP_TEXT_LAYOUT, null);
 			// mDeleteTextView.setLayoutParams(wrapContent);
-			// mDeleteTextView.setText(com.android.internal.R.string.delete);
+			// mDeleteTextView.setText(R.string.delete);
 			// mDeleteTextView.setOnClickListener(this);
 			// mContentView.addView(mDeleteTextView);
 		}
@@ -1965,14 +1610,14 @@ public class Editor {
 		@Override
 		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
 			// TypedArray styledAttributes = mTextView.getContext().obtainStyledAttributes(
-			// com.android.internal.R.styleable.SelectionModeDrawables);
+			// R.styleable.SelectionModeDrawables);
 			//
 			// mode.setTitle(mTextView.getContext().getString(
-			// com.android.internal.R.string.textSelectionCABTitle));
+			// R.string.textSelectionCABTitle));
 			// mode.setSubtitle(null);
 			// mode.setTitleOptionalHint(true);
 			//
-			// menu.add(0, TextView.ID_SELECT_ALL, 0, com.android.internal.R.string.selectAll)
+			// menu.add(0, TextView.ID_SELECT_ALL, 0, R.string.selectAll)
 			// .setIcon(
 			// styledAttributes.getResourceId(
 			// R.styleable.SelectionModeDrawables_actionModeSelectAllDrawable, 0))
@@ -1980,7 +1625,7 @@ public class Editor {
 			// .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
 			//
 			// if (mTextView.canCut()) {
-			// menu.add(0, TextView.ID_CUT, 0, com.android.internal.R.string.cut)
+			// menu.add(0, TextView.ID_CUT, 0, R.string.cut)
 			// .setIcon(
 			// styledAttributes.getResourceId(
 			// R.styleable.SelectionModeDrawables_actionModeCutDrawable, 0))
@@ -1989,7 +1634,7 @@ public class Editor {
 			// }
 			//
 			// if (mTextView.canCopy()) {
-			// menu.add(0, TextView.ID_COPY, 0, com.android.internal.R.string.copy)
+			// menu.add(0, TextView.ID_COPY, 0, R.string.copy)
 			// .setIcon(
 			// styledAttributes.getResourceId(
 			// R.styleable.SelectionModeDrawables_actionModeCopyDrawable, 0))
@@ -1998,7 +1643,7 @@ public class Editor {
 			// }
 			//
 			// if (mTextView.canPaste()) {
-			// menu.add(0, TextView.ID_PASTE, 0, com.android.internal.R.string.paste)
+			// menu.add(0, TextView.ID_PASTE, 0, R.string.paste)
 			// .setIcon(
 			// styledAttributes.getResourceId(
 			// R.styleable.SelectionModeDrawables_actionModePasteDrawable, 0))
@@ -2064,98 +1709,6 @@ public class Editor {
 		}
 	}
 
-	private class ActionPopupWindow extends PinnedPopupWindow implements OnClickListener {
-		// private static final int POPUP_TEXT_LAYOUT = com.android.internal.R.layout.text_edit_action_popup_text;
-		private TextView mPasteTextView;
-		private TextView mReplaceTextView;
-
-		@Override
-		protected void createPopupWindow() {
-			// mPopupWindow = new PopupWindow(mTextView.getContext(), null,
-			// com.android.internal.R.attr.textSelectHandleWindowStyle);
-			// mPopupWindow.setClippingEnabled(true);
-		}
-
-		@Override
-		protected void initContentView() {
-			// LinearLayout linearLayout = new LinearLayout(mTextView.getContext());
-			// linearLayout.setOrientation(LinearLayout.HORIZONTAL);
-			// mContentView = linearLayout;
-			// mContentView.setBackgroundResource(com.android.internal.R.drawable.text_edit_paste_window);
-			//
-			// LayoutInflater inflater = (LayoutInflater) mTextView.getContext().getSystemService(
-			// Context.LAYOUT_INFLATER_SERVICE);
-			//
-			// LayoutParams wrapContent = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-			// ViewGroup.LayoutParams.WRAP_CONTENT);
-			//
-			// mPasteTextView = (TextView) inflater.inflate(POPUP_TEXT_LAYOUT, null);
-			// mPasteTextView.setLayoutParams(wrapContent);
-			// mContentView.addView(mPasteTextView);
-			// mPasteTextView.setText(com.android.internal.R.string.paste);
-			// mPasteTextView.setOnClickListener(this);
-			//
-			// mReplaceTextView = (TextView) inflater.inflate(POPUP_TEXT_LAYOUT, null);
-			// mReplaceTextView.setLayoutParams(wrapContent);
-			// mContentView.addView(mReplaceTextView);
-			// mReplaceTextView.setText(com.android.internal.R.string.replace);
-			// mReplaceTextView.setOnClickListener(this);
-		}
-
-		@Override
-		public void show() {
-			boolean canPaste = mTextView.canPaste();
-			boolean canSuggest = mTextView.isSuggestionsEnabled() && isCursorInsideSuggestionSpan();
-			mPasteTextView.setVisibility(canPaste ? View.VISIBLE : View.GONE);
-			mReplaceTextView.setVisibility(canSuggest ? View.VISIBLE : View.GONE);
-
-			if (!canPaste && !canSuggest)
-				return;
-
-			super.show();
-		}
-
-		@Override
-		public void onClick(View view) {
-			if (view == mPasteTextView && mTextView.canPaste()) {
-				mTextView.onTextContextMenuItem(TextView.ID_PASTE);
-				hide();
-			} else if (view == mReplaceTextView) {
-				int middle = (mTextView.getSelectionStart() + mTextView.getSelectionEnd()) / 2;
-				stopSelectionActionMode();
-				Selection.setSelection((Spannable) mTextView.getText(), middle);
-				// showSuggestions();
-			}
-		}
-
-		@Override
-		protected int getTextOffset() {
-			return (mTextView.getSelectionStart() + mTextView.getSelectionEnd()) / 2;
-		}
-
-		@Override
-		protected int getVerticalLocalPosition(int line) {
-			return mTextView.getLayout().getLineTop(line) - mContentView.getMeasuredHeight();
-		}
-
-		@Override
-		protected int clipVertically(int positionY) {
-			if (positionY < 0) {
-				final int offset = getTextOffset();
-				final Layout layout = mTextView.getLayout();
-				final int line = layout.getLineForOffset(offset);
-				positionY += layout.getLineBottom(line) - layout.getLineTop(line);
-				positionY += mContentView.getMeasuredHeight();
-
-				// Assumes insertion and selection handles share the same height
-				final Drawable handle = mTextView.getResources().getDrawable(mTextView.mTextSelectHandleRes);
-				positionY += handle.getIntrinsicHeight();
-			}
-
-			return positionY;
-		}
-	}
-
 	private abstract class HandleView extends View implements TextViewPositionListener {
 		protected Drawable mDrawable;
 		protected Drawable mDrawableLtr;
@@ -2174,32 +1727,31 @@ public class Editor {
 		// Parent's (TextView) previous position in window
 		private int mLastParentX, mLastParentY;
 		// Transient action popup window for Paste and Replace actions
-		protected ActionPopupWindow mActionPopupWindow;
+		// protected ActionPopupWindow mActionPopupWindow;
 		// Previous text character offset
 		private int mPreviousOffset = -1;
 		// Previous text character offset
 		private boolean mPositionHasChanged = true;
+
 		// Used to delay the appearance of the action popup window
-		private Runnable mActionPopupShower;
+		// private Runnable mActionPopupShower;
 
 		public HandleView(Drawable drawableLtr, Drawable drawableRtl) {
 			super(mTextView.getContext());
-			mContainer = null;
-			// mContainer = new PopupWindow(mTextView.getContext(), null,
-			// com.android.internal.R.attr.textSelectHandleWindowStyle);
-			// mContainer.setSplitTouchEnabled(true);
-			// mContainer.setClippingEnabled(false);
+			mContainer = new PopupWindow(mTextView.getContext(), null, 0); // R.attr.textSelectHandleWindowStyle);
+			mContainer.setSplitTouchEnabled(true);
+			mContainer.setClippingEnabled(false);
 			// mContainer.setWindowLayoutType(WindowManager.LayoutParams.TYPE_APPLICATION_SUB_PANEL);
-			// mContainer.setContentView(this);
-			//
-			// mDrawableLtr = drawableLtr;
-			// mDrawableRtl = drawableRtl;
-			//
-			// updateDrawable();
-			//
-			// final int handleHeight = mDrawable.getIntrinsicHeight();
-			// mTouchOffsetY = -0.3f * handleHeight;
-			// mIdealVerticalOffset = 0.7f * handleHeight;
+			mContainer.setContentView(this);
+
+			mDrawableLtr = drawableLtr;
+			mDrawableRtl = drawableRtl;
+
+			updateDrawable();
+
+			final int handleHeight = mDrawable.getIntrinsicHeight();
+			mTouchOffsetY = -0.3f * handleHeight;
+			mIdealVerticalOffset = 0.7f * handleHeight;
 		}
 
 		protected void updateDrawable() {
@@ -2266,7 +1818,7 @@ public class Editor {
 			mPreviousOffset = -1;
 			positionAtCursorOffset(getCurrentCursorOffset(), false);
 
-			hideActionPopupWindow();
+			// hideActionPopupWindow();
 		}
 
 		protected void dismiss() {
@@ -2281,30 +1833,30 @@ public class Editor {
 			getPositionListener().removeSubscriber(this);
 		}
 
-		void showActionPopupWindow(int delay) {
-			if (mActionPopupWindow == null) {
-				mActionPopupWindow = new ActionPopupWindow();
-			}
-			if (mActionPopupShower == null) {
-				mActionPopupShower = new Runnable() {
-					public void run() {
-						mActionPopupWindow.show();
-					}
-				};
-			} else {
-				mTextView.removeCallbacks(mActionPopupShower);
-			}
-			mTextView.postDelayed(mActionPopupShower, delay);
-		}
+		// void showActionPopupWindow(int delay) {
+		// if (mActionPopupWindow == null) {
+		// mActionPopupWindow = new ActionPopupWindow();
+		// }
+		// if (mActionPopupShower == null) {
+		// mActionPopupShower = new Runnable() {
+		// public void run() {
+		// mActionPopupWindow.show();
+		// }
+		// };
+		// } else {
+		// mTextView.removeCallbacks(mActionPopupShower);
+		// }
+		// mTextView.postDelayed(mActionPopupShower, delay);
+		// }
 
-		protected void hideActionPopupWindow() {
-			if (mActionPopupShower != null) {
-				mTextView.removeCallbacks(mActionPopupShower);
-			}
-			if (mActionPopupWindow != null) {
-				mActionPopupWindow.hide();
-			}
-		}
+		// protected void hideActionPopupWindow() {
+		// if (mActionPopupShower != null) {
+		// mTextView.removeCallbacks(mActionPopupShower);
+		// }
+		// if (mActionPopupWindow != null) {
+		// mActionPopupWindow.hide();
+		// }
+		// }
 
 		public boolean isShowing() {
 			return mContainer.isShowing();
@@ -2454,11 +2006,11 @@ public class Editor {
 		}
 
 		void onHandleMoved() {
-			hideActionPopupWindow();
+			// hideActionPopupWindow();
 		}
 
 		public void onDetached() {
-			hideActionPopupWindow();
+			// hideActionPopupWindow();
 		}
 	}
 
@@ -2480,7 +2032,7 @@ public class Editor {
 
 			final long durationSinceCutOrCopy = SystemClock.uptimeMillis() - TextView.LAST_CUT_OR_COPY_TIME;
 			if (durationSinceCutOrCopy < RECENT_CUT_COPY_DURATION) {
-				showActionPopupWindow(0);
+				// showActionPopupWindow(0);
 			}
 
 			hideAfterDelay();
@@ -2488,7 +2040,7 @@ public class Editor {
 
 		public void showWithActionPopup() {
 			show();
-			showActionPopupWindow(0);
+			// showActionPopupWindow(0);
 		}
 
 		private void hideAfterDelay() {
@@ -2535,12 +2087,12 @@ public class Editor {
 					final int touchSlop = viewConfiguration.getScaledTouchSlop();
 
 					if (distanceSquared < touchSlop * touchSlop) {
-						if (mActionPopupWindow != null && mActionPopupWindow.isShowing()) {
-							// Tapping on the handle dismisses the displayed action popup
-							mActionPopupWindow.hide();
-						} else {
-							showWithActionPopup();
-						}
+						// if (mActionPopupWindow != null && mActionPopupWindow.isShowing()) {
+						// // Tapping on the handle dismisses the displayed action popup
+						// mActionPopupWindow.hide();
+						// } else {
+						// showWithActionPopup();
+						// }
 					}
 				}
 				hideAfterDelay();
@@ -2623,9 +2175,9 @@ public class Editor {
 			positionAtCursorOffset(offset, false);
 		}
 
-		public ActionPopupWindow getActionPopupWindow() {
-			return mActionPopupWindow;
-		}
+		// public ActionPopupWindow getActionPopupWindow() {
+		// return mActionPopupWindow;
+		// }
 	}
 
 	private class SelectionEndHandleView extends HandleView {
@@ -2667,9 +2219,9 @@ public class Editor {
 			positionAtCursorOffset(offset, false);
 		}
 
-		public void setActionPopupWindow(ActionPopupWindow actionPopupWindow) {
-			mActionPopupWindow = actionPopupWindow;
-		}
+		// public void setActionPopupWindow(ActionPopupWindow actionPopupWindow) {
+		// mActionPopupWindow = actionPopupWindow;
+		// }
 	}
 
 	/**
@@ -2737,7 +2289,7 @@ public class Editor {
 	}
 
 	class SelectionModifierCursorController implements CursorController {
-		private static final int DELAY_BEFORE_REPLACE_ACTION = 200; // milliseconds
+		// private static final int DELAY_BEFORE_REPLACE_ACTION = 200; // milliseconds
 		// The cursor controller handles, lazily created when shown.
 		private SelectionStartHandleView mStartHandle;
 		private SelectionEndHandleView mEndHandle;
@@ -2787,8 +2339,8 @@ public class Editor {
 
 			// Make sure both left and right handles share the same ActionPopupWindow (so that
 			// moving any of the handles hides the action popup).
-			mStartHandle.showActionPopupWindow(DELAY_BEFORE_REPLACE_ACTION);
-			mEndHandle.setActionPopupWindow(mStartHandle.getActionPopupWindow());
+			// mStartHandle.showActionPopupWindow(DELAY_BEFORE_REPLACE_ACTION);
+			// mEndHandle.setActionPopupWindow(mStartHandle.getActionPopupWindow());
 
 			hideInsertionPointCursorController();
 		}
@@ -2917,151 +2469,6 @@ public class Editor {
 		}
 	}
 
-	private class CorrectionHighlighter {
-		private final Path mPath = new Path();
-		private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-		private int mStart, mEnd;
-		private long mFadingStartTime;
-		private RectF mTempRectF;
-		private final static int FADE_OUT_DURATION = 400;
-
-		public CorrectionHighlighter() {
-			// mPaint.setCompatibilityScaling(mTextView.getResources().getCompatibilityInfo().applicationScale);
-			mPaint.setStyle(Paint.Style.FILL);
-		}
-
-		public void highlight(CorrectionInfo info) {
-			mStart = info.getOffset();
-			mEnd = mStart + info.getNewText().length();
-			mFadingStartTime = SystemClock.uptimeMillis();
-
-			if (mStart < 0 || mEnd < 0) {
-				stopAnimation();
-			}
-		}
-
-		public void draw(Canvas canvas, int cursorOffsetVertical) {
-			if (updatePath() && updatePaint()) {
-				if (cursorOffsetVertical != 0) {
-					canvas.translate(0, cursorOffsetVertical);
-				}
-
-				canvas.drawPath(mPath, mPaint);
-
-				if (cursorOffsetVertical != 0) {
-					canvas.translate(0, -cursorOffsetVertical);
-				}
-				invalidate(true); // TODO invalidate cursor region only
-			} else {
-				stopAnimation();
-				invalidate(false); // TODO invalidate cursor region only
-			}
-		}
-
-		private boolean updatePaint() {
-			final long duration = SystemClock.uptimeMillis() - mFadingStartTime;
-			if (duration > FADE_OUT_DURATION)
-				return false;
-
-			final float coef = 1.0f - (float) duration / FADE_OUT_DURATION;
-			final int highlightColorAlpha = Color.alpha(mTextView.mHighlightColor);
-			final int color = (mTextView.mHighlightColor & 0x00FFFFFF) + ((int) (highlightColorAlpha * coef) << 24);
-			mPaint.setColor(color);
-			return true;
-		}
-
-		private boolean updatePath() {
-			final Layout layout = mTextView.getLayout();
-			if (layout == null)
-				return false;
-
-			// Update in case text is edited while the animation is run
-			final int length = mTextView.getText().length();
-			int start = Math.min(length, mStart);
-			int end = Math.min(length, mEnd);
-
-			mPath.reset();
-			layout.getSelectionPath(start, end, mPath);
-			return true;
-		}
-
-		private void invalidate(boolean delayed) {
-			if (mTextView.getLayout() == null)
-				return;
-
-			if (mTempRectF == null)
-				mTempRectF = new RectF();
-			mPath.computeBounds(mTempRectF, false);
-
-			int left = mTextView.getCompoundPaddingLeft();
-			int top = mTextView.getExtendedPaddingTop() + mTextView.getVerticalOffset(true);
-
-			if (delayed) {
-				mTextView.postInvalidateOnAnimation(left + (int) mTempRectF.left, top + (int) mTempRectF.top, left
-						+ (int) mTempRectF.right, top + (int) mTempRectF.bottom);
-			} else {
-				mTextView.postInvalidate((int) mTempRectF.left, (int) mTempRectF.top, (int) mTempRectF.right,
-						(int) mTempRectF.bottom);
-			}
-		}
-
-		private void stopAnimation() {
-			Editor.this.mCorrectionHighlighter = null;
-		}
-	}
-
-	@SuppressWarnings("unused")
-	private static class ErrorPopup extends PopupWindow {
-		private boolean mAbove = false;
-		private final TextView mView;
-		private int mPopupInlineErrorBackgroundId = 0;
-		private int mPopupInlineErrorAboveBackgroundId = 0;
-
-		ErrorPopup(TextView v, int width, int height) {
-			super(v, width, height);
-			mView = v;
-			// Make sure the TextView has a background set as it will be used the first time it is
-			// shown and positioned. Initialized with below background, which should have
-			// dimensions identical to the above version for this to work (and is more likely).
-			// mPopupInlineErrorBackgroundId = getResourceId(mPopupInlineErrorBackgroundId,
-			// com.android.internal.R.styleable.Theme_errorMessageBackground);
-			// mView.setBackgroundResource(mPopupInlineErrorBackgroundId);
-		}
-
-		void fixDirection(boolean above) {
-			mAbove = above;
-
-			// if (above) {
-			// mPopupInlineErrorAboveBackgroundId = getResourceId(mPopupInlineErrorAboveBackgroundId,
-			// com.android.internal.R.styleable.Theme_errorMessageAboveBackground);
-			// } else {
-			// mPopupInlineErrorBackgroundId = getResourceId(mPopupInlineErrorBackgroundId,
-			// com.android.internal.R.styleable.Theme_errorMessageBackground);
-			// }
-
-			mView.setBackgroundResource(above ? mPopupInlineErrorAboveBackgroundId : mPopupInlineErrorBackgroundId);
-		}
-
-		// private int getResourceId(int currentId, int index) {
-		// // if (currentId == 0) {
-		// // TypedArray styledAttributes = mView.getContext().obtainStyledAttributes(R.styleable.Theme);
-		// // currentId = styledAttributes.getResourceId(index, 0);
-		// // styledAttributes.recycle();
-		// // }
-		// return currentId;
-		// }
-
-		@Override
-		public void update(int x, int y, int w, int h, boolean force) {
-			super.update(x, y, w, h, force);
-
-			boolean above = isAboveAnchor();
-			if (above != mAbove) {
-				fixDirection(above);
-			}
-		}
-	}
-
 	static class InputContentType {
 		int imeOptions = EditorInfo.IME_NULL;
 		String privateImeOptions;
@@ -3084,65 +2491,5 @@ public class Editor {
 		boolean mContentChanged;
 		int mChangedStart, mChangedEnd, mChangedDelta;
 	}
-
-	// /**
-	// * @hide
-	// */
-	// public static class UserDictionaryListener extends Handler {
-	// public TextView mTextView;
-	// public String mOriginalWord;
-	// public int mWordStart;
-	// public int mWordEnd;
-	//
-	// public void waitForUserDictionaryAdded(TextView tv, String originalWord, int spanStart, int spanEnd) {
-	// mTextView = tv;
-	// mOriginalWord = originalWord;
-	// mWordStart = spanStart;
-	// mWordEnd = spanEnd;
-	// }
-	//
-	// @Override
-	// public void handleMessage(Message msg) {
-	// switch (msg.what) {
-	// case 0: /* CODE_WORD_ADDED */
-	// case 2: /* CODE_ALREADY_PRESENT */
-	// if (!(msg.obj instanceof Bundle)) {
-	// Log.w(TAG, "Illegal message. Abort handling onUserDictionaryAdded.");
-	// return;
-	// }
-	// final Bundle bundle = (Bundle) msg.obj;
-	// final String originalWord = bundle.getString("originalWord");
-	// final String addedWord = bundle.getString("word");
-	// onUserDictionaryAdded(originalWord, addedWord);
-	// return;
-	// default:
-	// return;
-	// }
-	// }
-	//
-	// private void onUserDictionaryAdded(String originalWord, String addedWord) {
-	// if (TextUtils.isEmpty(mOriginalWord) || TextUtils.isEmpty(addedWord)) {
-	// return;
-	// }
-	// if (mWordStart < 0 || mWordEnd >= mTextView.length()) {
-	// return;
-	// }
-	// if (!mOriginalWord.equals(originalWord)) {
-	// return;
-	// }
-	// if (originalWord.equals(addedWord)) {
-	// return;
-	// }
-	// final Editable editable = (Editable) mTextView.getText();
-	// final String currentWord = editable.toString().substring(mWordStart, mWordEnd);
-	// if (!currentWord.equals(originalWord)) {
-	// return;
-	// }
-	// mTextView.replaceText_internal(mWordStart, mWordEnd, addedWord);
-	// // Move cursor at the end of the replaced word
-	// final int newCursorPosition = mWordStart + addedWord.length();
-	// mTextView.setCursorPosition_internal(newCursorPosition, newCursorPosition);
-	// }
-	// }
 
 }
