@@ -5,33 +5,25 @@ import android.text.method.KeyListener;
 import android.util.Log;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.CompletionInfo;
-import android.view.inputmethod.CorrectionInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 
 public class EditableInputConnection extends BaseInputConnection {
+	
 	private static final boolean DEBUG = false;
+	
 	private static final String TAG = "EditableInputConnection";
-
-	private final TextView mTextView;
 
 	// Keeps track of nested begin/end batch edit to ensure this connection always has a
 	// balanced impact on its associated TextView.
 	// A negative value means that this connection has been finished by the InputMethodManager.
 	private int mBatchEditNesting;
 
+	private final TextView mTextView;
+
 	public EditableInputConnection(TextView textview) {
 		super(textview, true);
 		mTextView = textview;
-	}
-
-	@Override
-	public Editable getEditable() {
-		TextView tv = mTextView;
-		if (tv != null) {
-			return tv.getEditableText();
-		}
-		return null;
 	}
 
 	@Override
@@ -45,35 +37,6 @@ public class EditableInputConnection extends BaseInputConnection {
 		}
 		return false;
 	}
-
-	@Override
-	public boolean endBatchEdit() {
-		synchronized (this) {
-			if (mBatchEditNesting > 0) {
-				// When the connection is reset by the InputMethodManager and reportFinish
-				// is called, some endBatchEdit calls may still be asynchronously received from the
-				// IME. Do not take these into account, thus ensuring that this IC's final
-				// contribution to mTextView's nested batch edit count is zero.
-				mTextView.endBatchEdit();
-				mBatchEditNesting--;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	// @Override
-	// protected void reportFinish() {
-	// super.reportFinish();
-	//
-	// synchronized(this) {
-	// while (mBatchEditNesting > 0) {
-	// endBatchEdit();
-	// }
-	// // Will prevent any further calls to begin or endBatchEdit
-	// mBatchEditNesting = -1;
-	// }
-	// }
 
 	@Override
 	public boolean clearMetaKeyStates(int states) {
@@ -102,35 +65,55 @@ public class EditableInputConnection extends BaseInputConnection {
 		return true;
 	}
 
-	/**
-	 * Calls the {@link TextView#onCommitCorrection} method of the associated TextView.
-	 */
+	// @Override
+	// protected void reportFinish() {
+	// super.reportFinish();
+	//
+	// synchronized(this) {
+	// while (mBatchEditNesting > 0) {
+	// endBatchEdit();
+	// }
+	// // Will prevent any further calls to begin or endBatchEdit
+	// mBatchEditNesting = -1;
+	// }
+	// }
+
+	// /**
+	// * Calls the {@link TextView#onCommitCorrection} method of the associated TextView.
+	// */
+	// @Override
+	// public boolean commitCorrection(CorrectionInfo correctionInfo) {
+	// if (DEBUG)
+	// Log.v(TAG, "commitCorrection" + correctionInfo);
+	// mTextView.beginBatchEdit();
+	// // mTextView.onCommitCorrection(correctionInfo);
+	// mTextView.endBatchEdit();
+	// return true;
+	// }
+
 	@Override
-	public boolean commitCorrection(CorrectionInfo correctionInfo) {
-		if (DEBUG)
-			Log.v(TAG, "commitCorrection" + correctionInfo);
-		mTextView.beginBatchEdit();
-		// mTextView.onCommitCorrection(correctionInfo);
-		mTextView.endBatchEdit();
-		return true;
+	public boolean endBatchEdit() {
+		synchronized (this) {
+			if (mBatchEditNesting > 0) {
+				// When the connection is reset by the InputMethodManager and reportFinish
+				// is called, some endBatchEdit calls may still be asynchronously received from the
+				// IME. Do not take these into account, thus ensuring that this IC's final
+				// contribution to mTextView's nested batch edit count is zero.
+				mTextView.endBatchEdit();
+				mBatchEditNesting--;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
-	public boolean performEditorAction(int actionCode) {
-		if (DEBUG)
-			Log.v(TAG, "performEditorAction " + actionCode);
-		mTextView.onEditorAction(actionCode);
-		return true;
-	}
-
-	@Override
-	public boolean performContextMenuAction(int id) {
-		if (DEBUG)
-			Log.v(TAG, "performContextMenuAction " + id);
-		mTextView.beginBatchEdit();
-		mTextView.onTextContextMenuItem(id);
-		mTextView.endBatchEdit();
-		return true;
+	public Editable getEditable() {
+		TextView tv = mTextView;
+		if (tv != null) {
+			return tv.getEditableText();
+		}
+		return null;
 	}
 
 	@Override
@@ -147,28 +130,22 @@ public class EditableInputConnection extends BaseInputConnection {
 		return null;
 	}
 
-	// @Override
-	// public boolean performPrivateCommand(String action, Bundle data) {
-	// // mTextView.onPrivateIMECommand(action, data);
-	// return true;
-	// }
+	@Override
+	public boolean performContextMenuAction(int id) {
+		if (DEBUG)
+			Log.v(TAG, "performContextMenuAction " + id);
+		mTextView.beginBatchEdit();
+		mTextView.onTextContextMenuItem(id);
+		mTextView.endBatchEdit();
+		return true;
+	}
 
-	// @Override
-	// public boolean commitText(CharSequence text, int newCursorPosition) {
-	// if (mTextView == null) {
-	// return super.commitText(text, newCursorPosition);
-	// }
-	// if (text instanceof Spanned) {
-	// Spanned spanned = ((Spanned) text);
-	// SuggestionSpan[] spans = spanned.getSpans(0, text.length(), SuggestionSpan.class);
-	// mIMM.registerSuggestionSpansForNotification(spans);
-	// }
-	//
-	// mTextView.resetErrorChangedFlag();
-	// boolean success = super.commitText(text, newCursorPosition);
-	// mTextView.hideErrorIfUnchanged();
-	//
-	// return success;
-	// }
+	@Override
+	public boolean performEditorAction(int actionCode) {
+		if (DEBUG)
+			Log.v(TAG, "performEditorAction " + actionCode);
+		mTextView.onEditorAction(actionCode);
+		return true;
+	}
 
 }

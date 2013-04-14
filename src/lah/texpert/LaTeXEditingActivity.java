@@ -12,6 +12,7 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
@@ -28,12 +29,15 @@ public class LaTeXEditingActivity extends Activity {
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
+	private FileDialog dialog;
+
 	private DocumentAdapter document_adapter;
 
 	private File focusing_file;
 
 	private ListView latex_source_listview;
 
+	@SuppressWarnings("unused")
 	private void handleIntent() {
 		Intent intent = getIntent();
 		Uri data;
@@ -50,8 +54,9 @@ public class LaTeXEditingActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
 		latex_source_listview = (ListView) findViewById(R.id.latex_source_listview);
-		// openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
-		handleIntent();
+		// Open testing document TODO remove
+		openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
+		// handleIntent();
 	}
 
 	@Override
@@ -60,8 +65,6 @@ public class LaTeXEditingActivity extends Activity {
 		getMenuInflater().inflate(R.menu.latex_editing, menu);
 		return true;
 	}
-
-	private FileDialog dialog;
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {

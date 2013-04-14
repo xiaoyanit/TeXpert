@@ -130,7 +130,7 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.LaTeXBlock> {
 			// TODO Referenced resources via \input, \includegraphics, etc
 			// TODO Verbatim and listing
 			// Math formulas TODO add math environments equation, align*, ... as well
-			Pattern.compile("((\\$|\\$\\$)([^\\$]|\\\\\\$)*(\\$|\\$\\$))"),
+			Pattern.compile("(\\$([^\\$]|\\\\\\$)+\\$|\\$\\$([^\\$]|\\\\\\$)+\\$\\$)"),
 			// TeX line comment TODO consider block comment via comments environment
 			Pattern.compile("(%.*\\n)") };
 
@@ -141,7 +141,7 @@ public class DocumentAdapter extends ArrayAdapter<DocumentAdapter.LaTeXBlock> {
 			// Command style: blue
 			new ForegroundColorSpan(Color.parseColor("#0000ff")),
 			// Formula style: green
-			new ForegroundColorSpan(Color.parseColor("#00ff00")),
+			new ForegroundColorSpan(Color.parseColor("#00cc00")),
 			// Comment style: gray
 			new ForegroundColorSpan(Color.parseColor("#a0a0a0")) };
 

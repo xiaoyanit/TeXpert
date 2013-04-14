@@ -1,11 +1,8 @@
 package lah.texpert;
 
-import android.os.Parcel;
 import android.text.GetChars;
-import android.text.ParcelableSpan;
 import android.text.Spanned;
 import android.text.SpannedString;
-import android.text.style.CharacterStyle;
 
 public class TextUtils {
 
@@ -142,55 +139,6 @@ public class TextUtils {
 	 */
 	public static int unpackRangeStartFromLong(long range) {
 		return (int) (range >>> 32);
-	}
-
-	/**
-	 * Flatten a CharSequence and whatever styles can be copied across processes into the parcel.
-	 */
-	public static void writeToParcel(CharSequence cs, Parcel p, int parcelableFlags) {
-		if (cs instanceof Spanned) {
-			p.writeInt(0);
-			p.writeString(cs.toString());
-
-			Spanned sp = (Spanned) cs;
-			Object[] os = sp.getSpans(0, cs.length(), Object.class);
-
-			// note to people adding to this: check more specific types
-			// before more generic types. also notice that it uses
-			// "if" instead of "else if" where there are interfaces
-			// so one object can be several.
-
-			for (int i = 0; i < os.length; i++) {
-				Object o = os[i];
-				Object prop = os[i];
-
-				if (prop instanceof CharacterStyle) {
-					prop = ((CharacterStyle) prop).getUnderlying();
-				}
-
-				if (prop instanceof ParcelableSpan) {
-					ParcelableSpan ps = (ParcelableSpan) prop;
-					p.writeInt(ps.getSpanTypeId());
-					ps.writeToParcel(p, parcelableFlags);
-					writeWhere(p, sp, o);
-				}
-			}
-
-			p.writeInt(0);
-		} else {
-			p.writeInt(1);
-			if (cs != null) {
-				p.writeString(cs.toString());
-			} else {
-				p.writeString(null);
-			}
-		}
-	}
-
-	private static void writeWhere(Parcel p, Spanned sp, Object o) {
-		p.writeInt(sp.getSpanStart(o));
-		p.writeInt(sp.getSpanEnd(o));
-		p.writeInt(sp.getSpanFlags(o));
 	}
 
 	private TextUtils() { /* cannot be instantiated */
