@@ -89,16 +89,6 @@ public class EditableInputConnection extends BaseInputConnection {
 	}
 
 	@Override
-	public boolean performContextMenuAction(int id) {
-		if (DEBUG)
-			Log.v(TAG, "performContextMenuAction " + id);
-		mTextView.beginBatchEdit();
-		mTextView.onTextContextMenuItem(id);
-		mTextView.endBatchEdit();
-		return true;
-	}
-
-	@Override
 	public boolean performEditorAction(int actionCode) {
 		if (DEBUG)
 			Log.v(TAG, "performEditorAction " + actionCode);

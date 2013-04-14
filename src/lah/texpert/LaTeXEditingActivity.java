@@ -2,6 +2,8 @@ package lah.texpert;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import lah.spectre.stream.Streams;
 import lah.widgets.fileview.FileDialog;
@@ -10,9 +12,15 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.text.Editable;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
+import android.text.style.CharacterStyle;
+import android.text.style.ForegroundColorSpan;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
@@ -26,19 +34,60 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends Activity {
 
+	/**
+	 * TeX and LaTeX text patterns for syntax highlighting purposes, the first group depicted in the pattern will be
+	 * highlighted using the style described in {@link DocumentAdapter#LATEX_STYLES}.
+	 */
+	static final Pattern[] LATEX_PATTERNS = {
+			// TODO Non-escaped TeX special characters: \ $ % & # _ ~ ^ { }
+			// TeX command and escaped special characters:
+			Pattern.compile("(\\\\([A-Za-z]+|[\\\\\\$%&#_~\\^\\{\\}]))"),
+			// TODO Command option between { and }
+			// TODO Referenced resources via \input, \includegraphics, etc
+			// TODO Verbatim and listing
+			// Math formulas TODO add math environments equation, align*, ... as well
+			Pattern.compile("(\\$([^\\$]|\\\\\\$)+\\$|\\$\\$([^\\$]|\\\\\\$)+\\$\\$)"),
+			// TeX line comment TODO consider block comment via comments environment
+			Pattern.compile("(%.*\\n)") };
+
+	/**
+	 * Corresponding styles for the above patterns
+	 */
+	static final CharacterStyle[] LATEX_STYLES = {
+			// Command style: blue
+			new ForegroundColorSpan(Color.parseColor("#0000ff")),
+			// Formula style: green
+			new ForegroundColorSpan(Color.parseColor("#00cc00")),
+			// Comment style: gray
+			new ForegroundColorSpan(Color.parseColor("#a0a0a0")) };
+
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
 	private FileDialog dialog;
 
+	@SuppressWarnings("unused")
 	private DocumentAdapter document_adapter;
+
+	private TextView document_textview;
 
 	private File focusing_file;
 
+	@SuppressWarnings("unused")
 	private ListView latex_source_listview;
 
-	@SuppressWarnings("unused")
-	private void handleIntent() {
+	Editable annotate(String text) {
+		SpannableStringBuilder builder = new SpannableStringBuilder(text);
+		for (int i = 0; i < LATEX_PATTERNS.length; i++) {
+			Matcher matcher = LATEX_PATTERNS[i].matcher(builder);
+			while (matcher.find())
+				builder.setSpan(CharacterStyle.wrap(LATEX_STYLES[i]), matcher.start(1), matcher.end(1),
+						Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
+		}
+		return builder;
+	}
+
+	void handleIntent() {
 		Intent intent = getIntent();
 		Uri data;
 		File file;
@@ -53,7 +102,8 @@ public class LaTeXEditingActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
-		latex_source_listview = (ListView) findViewById(R.id.latex_source_listview);
+		// latex_source_listview = (ListView) findViewById(R.id.latex_source_listview);
+		document_textview = (TextView) findViewById(R.id.document_area);
 		// Open testing document TODO remove
 		openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
 		// handleIntent();
@@ -103,8 +153,9 @@ public class LaTeXEditingActivity extends Activity {
 		try {
 			focusing_file = file;
 			String file_content = Streams.readTextFile(file);
-			document_adapter = new DocumentAdapter(this, file_content);
-			latex_source_listview.setAdapter(document_adapter);
+			// document_adapter = new DocumentAdapter(this, file_content);
+			// latex_source_listview.setAdapter(document_adapter);
+			document_textview.setText(annotate(file_content));
 		} catch (IOException e) {
 			e.printStackTrace(System.out);
 		}
