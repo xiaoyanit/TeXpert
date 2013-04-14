@@ -5,13 +5,11 @@ import android.text.method.KeyListener;
 import android.util.Log;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.CompletionInfo;
-import android.view.inputmethod.ExtractedText;
-import android.view.inputmethod.ExtractedTextRequest;
 
 public class EditableInputConnection extends BaseInputConnection {
-	
+
 	private static final boolean DEBUG = false;
-	
+
 	private static final String TAG = "EditableInputConnection";
 
 	// Keeps track of nested begin/end batch edit to ensure this connection always has a
@@ -65,32 +63,6 @@ public class EditableInputConnection extends BaseInputConnection {
 		return true;
 	}
 
-	// @Override
-	// protected void reportFinish() {
-	// super.reportFinish();
-	//
-	// synchronized(this) {
-	// while (mBatchEditNesting > 0) {
-	// endBatchEdit();
-	// }
-	// // Will prevent any further calls to begin or endBatchEdit
-	// mBatchEditNesting = -1;
-	// }
-	// }
-
-	// /**
-	// * Calls the {@link TextView#onCommitCorrection} method of the associated TextView.
-	// */
-	// @Override
-	// public boolean commitCorrection(CorrectionInfo correctionInfo) {
-	// if (DEBUG)
-	// Log.v(TAG, "commitCorrection" + correctionInfo);
-	// mTextView.beginBatchEdit();
-	// // mTextView.onCommitCorrection(correctionInfo);
-	// mTextView.endBatchEdit();
-	// return true;
-	// }
-
 	@Override
 	public boolean endBatchEdit() {
 		synchronized (this) {
@@ -112,20 +84,6 @@ public class EditableInputConnection extends BaseInputConnection {
 		TextView tv = mTextView;
 		if (tv != null) {
 			return tv.getEditableText();
-		}
-		return null;
-	}
-
-	@Override
-	public ExtractedText getExtractedText(ExtractedTextRequest request, int flags) {
-		if (mTextView != null) {
-			ExtractedText et = new ExtractedText();
-			if (mTextView.extractText(request, et)) {
-				if ((flags & GET_EXTRACTED_TEXT_MONITOR) != 0) {
-					mTextView.setExtracting(request);
-				}
-				return et;
-			}
 		}
 		return null;
 	}
