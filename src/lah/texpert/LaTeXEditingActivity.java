@@ -6,6 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lah.spectre.stream.Streams;
+import lah.widgets.TextArea;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.Activity;
@@ -23,7 +24,6 @@ import android.text.style.CharacterStyle;
 import android.text.style.ForegroundColorSpan;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.ListView;
 import android.widget.Toast;
 
 /**
@@ -66,15 +66,7 @@ public class LaTeXEditingActivity extends Activity {
 
 	private FileDialog dialog;
 
-	@SuppressWarnings("unused")
-	private DocumentAdapter document_adapter;
-
-	private TextView document_textview;
-
 	private File focusing_file;
-
-	@SuppressWarnings("unused")
-	private ListView latex_source_listview;
 
 	Editable annotate(String text) {
 		SpannableStringBuilder builder = new SpannableStringBuilder(text);
@@ -102,8 +94,6 @@ public class LaTeXEditingActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
-		// latex_source_listview = (ListView) findViewById(R.id.latex_source_listview);
-		document_textview = (TextView) findViewById(R.id.document_area);
 		// Open testing document TODO remove
 		openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
 		// handleIntent();
@@ -153,8 +143,7 @@ public class LaTeXEditingActivity extends Activity {
 		try {
 			focusing_file = file;
 			String file_content = Streams.readTextFile(file);
-			// document_adapter = new DocumentAdapter(this, file_content);
-			// latex_source_listview.setAdapter(document_adapter);
+			TextArea document_textview = (TextArea) findViewById(R.id.document_area);
 			document_textview.setText(annotate(file_content));
 		} catch (IOException e) {
 			e.printStackTrace(System.out);
