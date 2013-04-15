@@ -10,8 +10,11 @@ import lah.widgets.TextArea;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
@@ -41,7 +44,7 @@ public class LaTeXEditingActivity extends Activity {
 	static final Pattern[] LATEX_PATTERNS = {
 			// TODO Non-escaped TeX special characters: \ $ % & # _ ~ ^ { }
 			// TeX command and escaped special characters:
-			Pattern.compile("(\\\\([A-Za-z]+|[\\\\\\$%&#_~\\^\\{\\}]))"),
+			Pattern.compile("(\\\\([A-Za-z]+\\*?|[\\\\\\$%&#_~\\^\\{\\}]))"),
 			// TODO Command option between { and }
 			// TODO Referenced resources via \input, \includegraphics, etc
 			// TODO Verbatim and listing
@@ -61,12 +64,16 @@ public class LaTeXEditingActivity extends Activity {
 			// Comment style: gray
 			new ForegroundColorSpan(Color.parseColor("#a0a0a0")) };
 
+	private static final boolean TEST = true;
+
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
-	private FileDialog dialog;
+	private FileDialog file_select_dialog;
 
-	private File focusing_file;
+	private File opening_file;
+
+	private AlertDialog save_confirm_dialog;
 
 	Editable annotate(String text) {
 		SpannableStringBuilder builder = new SpannableStringBuilder(text);
@@ -79,7 +86,26 @@ public class LaTeXEditingActivity extends Activity {
 		return builder;
 	}
 
-	void handleIntent() {
+	private void confirmSave() {
+		if (save_confirm_dialog == null)
+			save_confirm_dialog = new AlertDialog.Builder(this).setTitle("Save document?")
+					.setPositiveButton("Save", new OnClickListener() {
+
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							try {
+								Streams.writeStringToFile(((TextArea) findViewById(R.id.document_area)).getText()
+										.toString(), opening_file, false);
+							} catch (IOException e) {
+								Toast.makeText(LaTeXEditingActivity.this, "Fail to save document!", Toast.LENGTH_SHORT)
+										.show();
+							}
+						}
+					}).setNegativeButton("Cancel", null).create();
+		save_confirm_dialog.show();
+	}
+
+	private void handleIntent() {
 		Intent intent = getIntent();
 		Uri data;
 		File file;
@@ -94,9 +120,10 @@ public class LaTeXEditingActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
-		// Open testing document TODO remove
-		openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
-		// handleIntent();
+		if (TEST)
+			openDocument(new File(Environment.getExternalStorageDirectory(), "CV.tex"));
+		else
+			handleIntent();
 	}
 
 	@Override
@@ -110,24 +137,24 @@ public class LaTeXEditingActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_open:
-			// TODO handle opening of document
-			if (dialog == null)
-				dialog = new FileDialog(this, new IFileSelectListener() {
+			if (file_select_dialog == null)
+				file_select_dialog = new FileDialog(this, new IFileSelectListener() {
 
 					@Override
 					public void onFileSelected(File result) {
 						openDocument(result);
 					}
 				}, "");
-			dialog.show();
+			file_select_dialog.show();
 			return true;
 		case R.id.action_save:
-			// TODO handle saving of document
+			confirmSave();
 			return true;
 		case R.id.action_send:
 			// TODO make sure file is in accessible place (on sdcard)
+			confirmSave();
 			try {
-				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(focusing_file)), 0);
+				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(opening_file)), 0);
 			} catch (ActivityNotFoundException e) {
 				Toast.makeText(this, "Fail to send document for compilation: TeXPortal is not installed!",
 						Toast.LENGTH_SHORT).show();
@@ -141,7 +168,7 @@ public class LaTeXEditingActivity extends Activity {
 		if (file == null || !file.exists())
 			return;
 		try {
-			focusing_file = file;
+			opening_file = file;
 			String file_content = Streams.readTextFile(file);
 			TextArea document_textview = (TextArea) findViewById(R.id.document_area);
 			document_textview.setText(annotate(file_content));
