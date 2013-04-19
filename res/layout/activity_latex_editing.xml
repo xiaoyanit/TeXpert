@@ -1,20 +1,34 @@
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/textarea_background"
+    android:orientation="vertical"
     android:paddingBottom="@dimen/activity_vertical_margin"
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".LaTeXEditingActivity" >
 
-    <lah.widgets.TextArea
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/document_area"
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dip"
+        android:layout_weight="1"
+        android:background="@drawable/textarea_background" >
+
+        <lah.widgets.TextArea
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/document_area"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+    </ScrollView>
+
+    <FrameLayout
+        android:id="@+id/special_symbols_fragment"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:focusable="true"
-        android:focusableInTouchMode="true" />
+        android:layout_gravity="bottom" >
+    </FrameLayout>
 
-</ScrollView>
+</LinearLayout>

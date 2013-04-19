@@ -5,7 +5,8 @@
     <string name="title_activity_latex_editing">TeXpert</string>
     <string name="action_open">Open</string>
     <string name="action_save">Save</string>
-    <string name="action_send">Send</string>
+    <string name="action_send">Compile with TeXPortal</string>
     <string name="action_settings">Settings</string>
+    <string name="message_cannot_send_texportal">Cannot send document for compilation: TeXPortal is not installed!</string>
 
 </resources>
