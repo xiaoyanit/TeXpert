@@ -1,6 +1,6 @@
 package lah.texpert;
 
-import android.app.Activity;
+import lah.widgets.TextArea;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -21,20 +21,15 @@ public class SpecialSymbolsFragment extends Fragment {
 
 	private static final String[] special_chars = { "\\", "$", "%", "&", "#", "_", "~", "^", "{}" };
 
-	public static SpecialSymbolsFragment newInstance() {
+	public static SpecialSymbolsFragment newInstance(TextArea target) {
 		SpecialSymbolsFragment fragment = new SpecialSymbolsFragment();
+		fragment.targetTextArea = target;
 		return fragment;
 	}
 
-	private LaTeXEditingActivity activity;
+	private TextArea targetTextArea;
 
 	public SpecialSymbolsFragment() {
-	}
-
-	@Override
-	public void onAttach(Activity activity) {
-		super.onAttach(activity);
-		this.activity = (LaTeXEditingActivity) activity;
 	}
 
 	@Override
@@ -46,8 +41,7 @@ public class SpecialSymbolsFragment extends Fragment {
 
 			@Override
 			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-				// TODO Auto-generated method stub
-				activity.insertAtCursor(special_chars[arg2]);
+				targetTextArea.insertAtCursor(special_chars[arg2]);
 			}
 		});
 		return view;

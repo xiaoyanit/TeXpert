@@ -1,17 +1,24 @@
 package lah.texpert;
 
 import java.lang.reflect.Array;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import lah.widgets.TextArea;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
+import android.text.DynamicLayout;
 import android.text.Editable;
 import android.text.GetChars;
 import android.text.InputFilter;
-import android.text.NoCopySpan;
 import android.text.Selection;
+import android.text.SpanWatcher;
+import android.text.Spannable;
 import android.text.Spanned;
 import android.text.TextWatcher;
+import android.text.style.CharacterStyle;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 
 /**
@@ -25,6 +32,35 @@ public class LaTeXStringBuilder implements Editable {
 	private static Object[] EMPTY = new Object[0];
 
 	private static final int END_MASK = 0x0F;
+
+	/**
+	 * TeX and LaTeX text patterns for syntax highlighting purposes, the first group depicted in the pattern will be
+	 * highlighted using the style described in {@link DocumentAdapter#LATEX_STYLES}. TODO Command option between { and
+	 * } TODO Referenced resources via \input, \includegraphics, etc TODO Verbatim and listing TODO Add math
+	 * environments equation, align*, ... as well
+	 */
+	static final Pattern[] LATEX_PATTERNS = {
+			// Non-escaped TeX special characters: \ $ % & # _ ~ ^ { }
+			Pattern.compile("([\\\\\\$%&#_~\\^\\{\\}])"),
+			// TeX command and escaped special characters:
+			Pattern.compile("(\\\\([A-Za-z]+\\*?|[\\\\\\$%&#_~\\^\\{\\}]))"),
+			// Math formulas
+			Pattern.compile("(\\$([^\\$]|\\\\\\$)+\\$|\\$\\$([^\\$]|\\\\\\$)+\\$\\$)"),
+			// TeX line comment TODO consider block comment via comments environment
+			Pattern.compile("(%.*\\n)") };
+
+	/**
+	 * Corresponding styles for the above patterns
+	 */
+	private static final CharacterStyle[] LATEX_STYLES = {
+			// Special character style: yellow
+			new ForegroundColorSpan(Color.parseColor("#cc8000")),
+			// Command style: blue
+			new ForegroundColorSpan(Color.parseColor("#0000ff")),
+			// Formula style: green
+			new ForegroundColorSpan(Color.parseColor("#00cc00")),
+			// Comment style: gray
+			new ForegroundColorSpan(Color.parseColor("#a0a0a0")) };
 
 	// TODO These value are tightly related to the public SPAN_MARK/POINT values in {@link Spanned}
 	private static final int MARK = 1;
@@ -137,14 +173,6 @@ public class LaTeXStringBuilder implements Editable {
 		return "(" + start + " ... " + end + ")";
 	}
 
-	public static LaTeXStringBuilder valueOf(CharSequence source) {
-		if (source instanceof LaTeXStringBuilder) {
-			return (LaTeXStringBuilder) source;
-		} else {
-			return new LaTeXStringBuilder(source);
-		}
-	}
-
 	private int mGapLength;
 
 	private int mGapStart;
@@ -153,43 +181,44 @@ public class LaTeXStringBuilder implements Editable {
 
 	private int mSpanCountBeforeAdd;
 
-	private int[] mSpanEnds;
-
-	private int[] mSpanFlags;
+	/**
+	 * TODO Make this efficient, there is no need for generic Object as span!
+	 */
+	private int[] mSpanEnds, mSpanStarts, mSpanFlags;
 
 	private Object[] mSpans;
 
-	private int[] mSpanStarts;
+	/**
+	 * I do not want to allow this object to have generic modification of SpanWatcher/TextWatcher. The damn issue is
+	 * that {@link DynamicLayout} relies on SpanWatcher/TextWatcher for notification of changes! So I will allow for a
+	 * single instance of {@link SpanWatcher} and {@link TextWatcher}.
+	 */
+	private SpanWatcher mDynamicLayoutSpanWatcher;
 
 	private char[] mText;
 
-	private TextWatcher watcher;
-
-	public LaTeXStringBuilder() {
-		this("");
-	}
-
-	public LaTeXStringBuilder(CharSequence text) {
-		this(text, 0, text.length());
-	}
+	/**
+	 * {@link TextArea} to notify about text + span changes.
+	 */
+	private final TextArea mTextArea;
 
 	/**
-	 * Create a new SpannableStringBuilder containing a copy of the specified slice of the specified text, including its
-	 * spans if any.
+	 * A single allowable {@link TextWatcher} that this object will notify
 	 */
-	public LaTeXStringBuilder(CharSequence text, int start, int end) {
-		int srclen = end - start;
+	private TextWatcher mDynamicLayoutTextWatcher;
 
+	public LaTeXStringBuilder(TextArea textarea, CharSequence text) {
+		mTextArea = textarea;
+		int start = 0;
+		int end = text.length();
+		int srclen = end - start;
 		if (srclen < 0)
 			throw new StringIndexOutOfBoundsException();
-
 		int len = TextArea.TextUtils.idealCharArraySize(srclen + 1);
 		mText = new char[len];
 		mGapStart = srclen;
 		mGapLength = len - srclen;
-
 		getChars(text, start, end, mText, 0);
-
 		mSpanCount = 0;
 		int alloc = idealIntArraySize(0);
 		mSpans = new Object[alloc];
@@ -197,30 +226,30 @@ public class LaTeXStringBuilder implements Editable {
 		mSpanEnds = new int[alloc];
 		mSpanFlags = new int[alloc];
 
-		if (text instanceof Spanned) {
-			Spanned sp = (Spanned) text;
-			Object[] spans = sp.getSpans(start, end, Object.class);
-
-			for (int i = 0; i < spans.length; i++) {
-				if (spans[i] instanceof NoCopySpan) {
-					continue;
+		// Annotate with styles TODO Make this efficient!
+		int num_spans = 0;
+		for (int i = 0; i < LATEX_PATTERNS.length; i++) {
+			Matcher matcher = LATEX_PATTERNS[i].matcher(this);
+			if (i == 0) {
+				// special character: check if it is escaped? TODO This is wrong in some case!
+				while (matcher.find()) {
+					int pat_start = matcher.start(1);
+					int pat_end = matcher.end(1);
+					if (i == 0 && pat_start > 0 && charAt(pat_start - 1) == '\\')
+						continue;
+					else
+						setSpan(CharacterStyle.wrap(LATEX_STYLES[i]), pat_start, pat_end,
+								Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
 				}
-
-				int st = sp.getSpanStart(spans[i]) - start;
-				int en = sp.getSpanEnd(spans[i]) - start;
-				int fl = sp.getSpanFlags(spans[i]);
-
-				if (st < 0)
-					st = 0;
-				if (st > end - start)
-					st = end - start;
-
-				if (en < 0)
-					en = 0;
-				if (en > end - start)
-					en = end - start;
-
-				setSpan(spans[i], st, en, fl);
+			} else {
+				// other patterns
+				while (matcher.find()) {
+					int pat_start = matcher.start(1);
+					int pat_end = matcher.end(1);
+					setSpan(CharacterStyle.wrap(LATEX_STYLES[i]), pat_start, pat_end,
+							Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
+					num_spans++;
+				}
 			}
 		}
 	}
@@ -254,26 +283,26 @@ public class LaTeXStringBuilder implements Editable {
 			if (spanEnd > mGapStart)
 				spanEnd -= mGapLength;
 
-			if ((mSpanFlags[i] & SPAN_PARAGRAPH) == SPAN_PARAGRAPH) {
-				int ost = spanStart;
-				int oen = spanEnd;
-				int clen = length();
-
-				if (spanStart > start && spanStart <= end) {
-					for (spanStart = end; spanStart < clen; spanStart++)
-						if (spanStart > end && charAt(spanStart - 1) == '\n')
-							break;
-				}
-
-				if (spanEnd > start && spanEnd <= end) {
-					for (spanEnd = end; spanEnd < clen; spanEnd++)
-						if (spanEnd > end && charAt(spanEnd - 1) == '\n')
-							break;
-				}
-
-				if (spanStart != ost || spanEnd != oen)
-					setSpan(mSpans[i], spanStart, spanEnd, mSpanFlags[i]);
-			}
+			// if ((mSpanFlags[i] & SPAN_PARAGRAPH) == SPAN_PARAGRAPH) {
+			// int ost = spanStart;
+			// int oen = spanEnd;
+			// int clen = length();
+			//
+			// if (spanStart > start && spanStart <= end) {
+			// for (spanStart = end; spanStart < clen; spanStart++)
+			// if (spanStart > end && charAt(spanStart - 1) == '\n')
+			// break;
+			// }
+			//
+			// if (spanEnd > start && spanEnd <= end) {
+			// for (spanEnd = end; spanEnd < clen; spanEnd++)
+			// if (spanEnd > end && charAt(spanEnd - 1) == '\n')
+			// break;
+			// }
+			//
+			// if (spanStart != ost || spanEnd != oen)
+			// setSpan(mSpans[i], spanStart, spanEnd, mSpanFlags[i]);
+			// }
 
 			int flags = 0;
 			if (spanStart == start)
@@ -337,25 +366,25 @@ public class LaTeXStringBuilder implements Editable {
 
 		mSpanCountBeforeAdd = mSpanCount;
 
-		if (cs instanceof Spanned) {
-			Spanned sp = (Spanned) cs;
-			Object[] spans = sp.getSpans(csStart, csEnd, Object.class);
-
-			for (int i = 0; i < spans.length; i++) {
-				int st = sp.getSpanStart(spans[i]);
-				int en = sp.getSpanEnd(spans[i]);
-
-				if (st < csStart)
-					st = csStart;
-				if (en > csEnd)
-					en = csEnd;
-
-				// Add span only if this object is not yet used as a span in this string
-				if (getSpanStart(spans[i]) < 0) {
-					setSpan(spans[i], st - csStart + start, en - csStart + start, sp.getSpanFlags(spans[i]));
-				}
-			}
-		}
+		// if (cs instanceof Spanned) {
+		// Spanned sp = (Spanned) cs;
+		// Object[] spans = sp.getSpans(csStart, csEnd, Object.class);
+		//
+		// for (int i = 0; i < spans.length; i++) {
+		// int st = sp.getSpanStart(spans[i]);
+		// int en = sp.getSpanEnd(spans[i]);
+		//
+		// if (st < csStart)
+		// st = csStart;
+		// if (en > csEnd)
+		// en = csEnd;
+		//
+		// // Add span only if this object is not yet used as a span in this string
+		// if (getSpanStart(spans[i]) < 0) {
+		// setSpan(spans[i], st - csStart + start, en - csStart + start, sp.getSpanFlags(spans[i]));
+		// }
+		// }
+		// }
 	}
 
 	/**
@@ -410,29 +439,6 @@ public class LaTeXStringBuilder implements Editable {
 		}
 	}
 
-	// TODO L.A.H. This method is necessary since the string backing array contains 'gaps' in the middle
-	// so that they have to potentially make two invocations to draw two segments on Canvas!
-	// /**
-	// * Don't call this yourself -- exists for Canvas to use internally. {@hide}
-	// */
-	// public void drawTextRun(Canvas c, int start, int end, int contextStart, int contextEnd, float x, float y,
-	// int flags, Paint p) {
-	// checkRange("drawTextRun", start, end);
-	//
-	// int contextLen = contextEnd - contextStart;
-	// int len = end - start;
-	// if (contextEnd <= mGapStart) {
-	// c.drawTextRun(mText, start, len, contextStart, contextLen, x, y, flags, p);
-	// } else if (contextStart >= mGapStart) {
-	// c.drawTextRun(mText, start + mGapLength, len, contextStart + mGapLength, contextLen, x, y, flags, p);
-	// } else {
-	// char[] buf = TextArea.TextUtils.obtain(contextLen);
-	// getChars(contextStart, contextEnd, buf, 0);
-	// c.drawTextRun(buf, start - contextStart, len, 0, contextLen, x, y, flags, p);
-	// TextArea.TextUtils.recycle(buf);
-	// }
-	// }
-
 	public LaTeXStringBuilder delete(int start, int end) {
 		LaTeXStringBuilder ret = replace(start, end, "", 0, 0);
 
@@ -444,14 +450,15 @@ public class LaTeXStringBuilder implements Editable {
 
 	public void drawText(Canvas c, int start, int end, float x, float y, Paint p) {
 		checkRange("drawText", start, end);
+		int len = end - start;
 		if (end <= mGapStart) {
-			c.drawText(mText, start, end - start, x, y, p);
+			c.drawText(mText, start, len, x, y, p);
 		} else if (start >= mGapStart) {
-			c.drawText(mText, start + mGapLength, end - start, x, y, p);
+			c.drawText(mText, start + mGapLength, len, x, y, p);
 		} else {
-			char[] buf = obtain(end - start);
+			char[] buf = obtain(len);
 			getChars(start, end, buf, 0);
-			c.drawText(buf, 0, end - start, x, y, p);
+			c.drawText(buf, 0, len, x, y, p);
 			recycle(buf);
 		}
 	}
@@ -471,6 +478,7 @@ public class LaTeXStringBuilder implements Editable {
 		}
 	}
 
+	@Override
 	public InputFilter[] getFilters() {
 		return null;
 	}
@@ -612,29 +620,6 @@ public class LaTeXStringBuilder implements Editable {
 		return nret;
 	}
 
-	// /**
-	// * Don't call this yourself -- exists for Paint to use internally. {@hide}
-	// */
-	// public int getTextWidths(int start, int end, float[] widths, Paint p) {
-	// checkRange("getTextWidths", start, end);
-	//
-	// int ret;
-	//
-	// if (end <= mGapStart) {
-	// ret = p.getTextWidths(mText, start, end - start, widths);
-	// } else if (start >= mGapStart) {
-	// ret = p.getTextWidths(mText, start + mGapLength, end - start, widths);
-	// } else {
-	// char[] buf = obtain(end - start);
-	//
-	// getChars(start, end, buf, 0);
-	// ret = p.getTextWidths(buf, 0, end - start, widths);
-	// recycle(buf);
-	// }
-	//
-	// return ret;
-	// }
-
 	/**
 	 * Return the buffer offset of the beginning of the specified markup object, or -1 if it is not attached to this
 	 * buffer.
@@ -657,114 +642,6 @@ public class LaTeXStringBuilder implements Editable {
 		return -1;
 	}
 
-	// /**
-	// * Don't call this yourself -- exists for Paint to use internally. {@hide}
-	// */
-	// public float getTextRunAdvances(int start, int end, int contextStart, int contextEnd, int flags, float[]
-	// advances,
-	// int advancesPos, Paint p) {
-	//
-	// float ret;
-	//
-	// int contextLen = contextEnd - contextStart;
-	// int len = end - start;
-	//
-	// if (end <= mGapStart) {
-	// ret = p.getTextRunAdvances(mText, start, len, contextStart, contextLen, flags, advances, advancesPos);
-	// } else if (start >= mGapStart) {
-	// ret = p.getTextRunAdvances(mText, start + mGapLength, len, contextStart + mGapLength, contextLen, flags,
-	// advances, advancesPos);
-	// } else {
-	// char[] buf = TextArea.TextUtils.obtain(contextLen);
-	// getChars(contextStart, contextEnd, buf, 0);
-	// ret = p.getTextRunAdvances(buf, start - contextStart, len, 0, contextLen, flags, advances, advancesPos);
-	// TextArea.TextUtils.recycle(buf);
-	// }
-	//
-	// return ret;
-	// }
-	//
-	// /**
-	// * Don't call this yourself -- exists for Paint to use internally. {@hide}
-	// */
-	// public float getTextRunAdvances(int start, int end, int contextStart, int contextEnd, int flags, float[]
-	// advances,
-	// int advancesPos, Paint p, int reserved) {
-	//
-	// float ret;
-	//
-	// int contextLen = contextEnd - contextStart;
-	// int len = end - start;
-	//
-	// if (end <= mGapStart) {
-	// ret = p.getTextRunAdvances(mText, start, len, contextStart, contextLen, flags, advances, advancesPos,
-	// reserved);
-	// } else if (start >= mGapStart) {
-	// ret = p.getTextRunAdvances(mText, start + mGapLength, len, contextStart + mGapLength, contextLen, flags,
-	// advances, advancesPos, reserved);
-	// } else {
-	// char[] buf = TextArea.TextUtils.obtain(contextLen);
-	// getChars(contextStart, contextEnd, buf, 0);
-	// ret = p.getTextRunAdvances(buf, start - contextStart, len, 0, contextLen, flags, advances, advancesPos,
-	// reserved);
-	// TextArea.TextUtils.recycle(buf);
-	// }
-	//
-	// return ret;
-	// }
-	//
-	// /**
-	// * Returns the next cursor position in the run. This avoids placing the cursor between surrogates, between
-	// * characters that form conjuncts, between base characters and combining marks, or within a reordering cluster.
-	// *
-	// * <p>
-	// * The context is the shaping context for cursor movement, generally the bounds of the metric span enclosing the
-	// * cursor in the direction of movement. <code>contextStart</code>, <code>contextEnd</code> and <code>offset</code>
-	// * are relative to the start of the string.
-	// * </p>
-	// *
-	// * <p>
-	// * If cursorOpt is CURSOR_AT and the offset is not a valid cursor position, this returns -1. Otherwise this will
-	// * never return a value before contextStart or after contextEnd.
-	// * </p>
-	// *
-	// * @param contextStart
-	// * the start index of the context
-	// * @param contextEnd
-	// * the (non-inclusive) end index of the context
-	// * @param flags
-	// * either DIRECTION_RTL or DIRECTION_LTR
-	// * @param offset
-	// * the cursor position to move from
-	// * @param cursorOpt
-	// * how to move the cursor, one of CURSOR_AFTER, CURSOR_AT_OR_AFTER, CURSOR_BEFORE, CURSOR_AT_OR_BEFORE,
-	// * or CURSOR_AT
-	// * @param p
-	// * the Paint object that is requesting this information
-	// * @return the offset of the next position, or -1
-	// * @deprecated This is an internal method, refrain from using it in your code
-	// */
-	// @Deprecated
-	// public int getTextRunCursor(int contextStart, int contextEnd, int flags, int offset, int cursorOpt, Paint p) {
-	//
-	// int ret;
-	//
-	// int contextLen = contextEnd - contextStart;
-	// if (contextEnd <= mGapStart) {
-	// ret = p.getTextRunCursor(mText, contextStart, contextLen, flags, offset, cursorOpt);
-	// } else if (contextStart >= mGapStart) {
-	// ret = p.getTextRunCursor(mText, contextStart + mGapLength, contextLen, flags, offset + mGapLength,
-	// cursorOpt) - mGapLength;
-	// } else {
-	// char[] buf = TextArea.TextUtils.obtain(contextLen);
-	// getChars(contextStart, contextEnd, buf, 0);
-	// ret = p.getTextRunCursor(buf, 0, contextLen, flags, offset - contextStart, cursorOpt) + contextStart;
-	// TextArea.TextUtils.recycle(buf);
-	// }
-	//
-	// return ret;
-	// }
-
 	public LaTeXStringBuilder insert(int where, CharSequence tb) {
 		return replace(where, where, tb, 0, tb.length());
 	}
@@ -772,29 +649,6 @@ public class LaTeXStringBuilder implements Editable {
 	public LaTeXStringBuilder insert(int where, CharSequence tb, int start, int end) {
 		return replace(where, where, tb, start, end);
 	}
-
-	// /**
-	// * Don't call this yourself -- exists for Paint to use internally. {@hide}
-	// */
-	// public float measureText(int start, int end, Paint p) {
-	// checkRange("measureText", start, end);
-	//
-	// float ret;
-	//
-	// if (end <= mGapStart) {
-	// ret = p.measureText(mText, start, end - start);
-	// } else if (start >= mGapStart) {
-	// ret = p.measureText(mText, start + mGapLength, end - start);
-	// } else {
-	// char[] buf = obtain(end - start);
-	//
-	// getChars(start, end, buf, 0);
-	// ret = p.measureText(buf, 0, end - start);
-	// recycle(buf);
-	// }
-	//
-	// return ret;
-	// }
 
 	/**
 	 * Return the number of chars in the buffer.
@@ -932,8 +786,6 @@ public class LaTeXStringBuilder implements Editable {
 			// Early exit so that the text watchers do not get notified
 			return this;
 		}
-		if (watcher != null)
-			watcher.beforeTextChanged(this, start, origLen, newLen);
 
 		// Try to keep the cursor / selection at the same relative position during a text replacement. If replaced or
 		// replacement text length is zero, this is already taken care of.
@@ -944,27 +796,24 @@ public class LaTeXStringBuilder implements Editable {
 			selectionStart = Selection.getSelectionStart(this);
 			selectionEnd = Selection.getSelectionEnd(this);
 		}
-
 		change(start, end, tb, tbstart, tbend);
-
 		if (adjustSelection) {
 			if (selectionStart > start && selectionStart < end) {
 				final int offset = (selectionStart - start) * newLen / origLen;
 				selectionStart = start + offset;
-
 				setSpan(Selection.SELECTION_START, selectionStart, selectionStart, Spanned.SPAN_POINT_POINT);
 			}
 			if (selectionEnd > start && selectionEnd < end) {
 				final int offset = (selectionEnd - start) * newLen / origLen;
 				selectionEnd = start + offset;
-
 				setSpan(Selection.SELECTION_END, selectionEnd, selectionEnd, Spanned.SPAN_POINT_POINT);
 			}
 		}
-		if (watcher != null) {
-			watcher.onTextChanged(this, start, origLen, newLen);
-			watcher.afterTextChanged(this);
-		}
+		if (mDynamicLayoutTextWatcher != null)
+			mDynamicLayoutTextWatcher.onTextChanged(this, start, origLen, newLen);
+		if (mTextArea != null)
+			mTextArea.onTextChanged(this, start, origLen, newLen);
+		sendToSpanWatchers(start, end, newLen - origLen);
 		return this;
 	}
 
@@ -993,6 +842,72 @@ public class LaTeXStringBuilder implements Editable {
 		}
 	}
 
+	private void sendToSpanWatchers(int replaceStart, int replaceEnd, int nbNewChars) {
+		for (int i = 0; i < mSpanCountBeforeAdd; i++) {
+			int spanStart = mSpanStarts[i];
+			int spanEnd = mSpanEnds[i];
+			if (spanStart > mGapStart)
+				spanStart -= mGapLength;
+			if (spanEnd > mGapStart)
+				spanEnd -= mGapLength;
+			int spanFlags = mSpanFlags[i];
+
+			int newReplaceEnd = replaceEnd + nbNewChars;
+			boolean spanChanged = false;
+
+			int previousSpanStart = spanStart;
+			if (spanStart > newReplaceEnd) {
+				if (nbNewChars != 0) {
+					previousSpanStart -= nbNewChars;
+					spanChanged = true;
+				}
+			} else if (spanStart >= replaceStart) {
+				// No change if span start was already at replace interval boundaries before replace
+				if ((spanStart != replaceStart || ((spanFlags & SPAN_START_AT_START) != SPAN_START_AT_START))
+						&& (spanStart != newReplaceEnd || ((spanFlags & SPAN_START_AT_END) != SPAN_START_AT_END))) {
+					// TODO A correct previousSpanStart cannot be computed at this point.
+					// It would require to save all the previous spans' positions before the replace
+					// Using an invalid -1 value to convey this would break the broacast range
+					spanChanged = true;
+				}
+			}
+
+			int previousSpanEnd = spanEnd;
+			if (spanEnd > newReplaceEnd) {
+				if (nbNewChars != 0) {
+					previousSpanEnd -= nbNewChars;
+					spanChanged = true;
+				}
+			} else if (spanEnd >= replaceStart) {
+				// No change if span start was already at replace interval boundaries before replace
+				if ((spanEnd != replaceStart || ((spanFlags & SPAN_END_AT_START) != SPAN_END_AT_START))
+						&& (spanEnd != newReplaceEnd || ((spanFlags & SPAN_END_AT_END) != SPAN_END_AT_END))) {
+					// TODO same as above for previousSpanEnd
+					spanChanged = true;
+				}
+			}
+
+			if (spanChanged) {
+				if (mDynamicLayoutSpanWatcher != null)
+					mDynamicLayoutSpanWatcher.onSpanChanged(this, mSpans[i], previousSpanStart, previousSpanEnd,
+							spanStart, spanEnd);
+				if (mTextArea != null)
+					mTextArea.onSpanChanged(this, mSpans[i], previousSpanStart, previousSpanEnd, spanStart, spanEnd);
+			}
+			mSpanFlags[i] &= ~SPAN_START_END_MASK;
+		}
+
+		// The spans starting at mIntermediateSpanCount were added from the replacement text
+		// TODO currently not support add new spans
+		// for (int i = mSpanCountBeforeAdd; i < mSpanCount; i++) {
+		// int spanStart = mSpanStarts[i];
+		// int spanEnd = mSpanEnds[i];
+		// if (spanStart > mGapStart) spanStart -= mGapLength;
+		// if (spanEnd > mGapStart) spanEnd -= mGapLength;
+		// sendSpanAdded(mSpans[i], spanStart, spanEnd);
+		// }
+	}
+
 	public void setFilters(InputFilter[] filters) {
 		throw new UnsupportedOperationException();
 	}
@@ -1002,25 +917,34 @@ public class LaTeXStringBuilder implements Editable {
 	 * text is inserted at the start or end of the span's range.
 	 */
 	public void setSpan(Object what, int start, int end, int flags) {
+		// For TextWatcher and SpanWatcher
+		if (what instanceof TextWatcher && what instanceof SpanWatcher) {
+			mDynamicLayoutTextWatcher = (TextWatcher) what;
+			mDynamicLayoutSpanWatcher = (SpanWatcher) what;
+			return;
+		}
+
+		// For Selection.SELECTION_START and Selection.SELECTION_END
+
 		// inline from setSpan(true, what, start, end, flags);
 		checkRange("setSpan", start, end);
 		int flagsStart = (flags & START_MASK) >> START_SHIFT;
-		if (flagsStart == PARAGRAPH) {
-			if (start != 0 && start != length()) {
-				char c = charAt(start - 1);
-				if (c != '\n')
-					throw new RuntimeException("PARAGRAPH span must start at paragraph boundary");
-			}
-		}
+		// if (flagsStart == PARAGRAPH) {
+		// if (start != 0 && start != length()) {
+		// char c = charAt(start - 1);
+		// if (c != '\n')
+		// throw new RuntimeException("PARAGRAPH span must start at paragraph boundary");
+		// }
+		// }
 		int flagsEnd = flags & END_MASK;
-		if (flagsEnd == PARAGRAPH) {
-			if (end != 0 && end != length()) {
-				char c = charAt(end - 1);
-
-				if (c != '\n')
-					throw new RuntimeException("PARAGRAPH span must end at paragraph boundary");
-			}
-		}
+		// if (flagsEnd == PARAGRAPH) {
+		// if (end != 0 && end != length()) {
+		// char c = charAt(end - 1);
+		//
+		// if (c != '\n')
+		// throw new RuntimeException("PARAGRAPH span must end at paragraph boundary");
+		// }
+		// }
 
 		// 0-length Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
 		if (flagsStart == POINT && flagsEnd == MARK && start == end) {
@@ -1094,16 +1018,13 @@ public class LaTeXStringBuilder implements Editable {
 		mSpanCount++;
 	}
 
-	public void setWatcher(TextWatcher watcher) {
-		this.watcher = watcher;
-	}
-
 	/**
 	 * Return a new CharSequence containing a copy of the specified range of this buffer, including the overlapping
 	 * spans.
 	 */
 	public CharSequence subSequence(int start, int end) {
-		return new LaTeXStringBuilder(this, start, end);
+		// return new LaTeXStringBuilder(this, start, end);
+		throw new UnsupportedOperationException("LaTeXStringBuilder#subSequence");
 	}
 
 	/**
