@@ -6,6 +6,7 @@ import java.io.IOException;
 import lah.spectre.stream.Streams;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
@@ -15,11 +16,13 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.v4.app.FragmentActivity;
 import android.text.Editable;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
+import android.widget.ExpandableListView;
+import android.widget.ExpandableListView.OnChildClickListener;
 import android.widget.Toast;
 
 /**
@@ -28,9 +31,9 @@ import android.widget.Toast;
  * @author L.A.H.
  * 
  */
-public class LaTeXEditingActivity extends FragmentActivity {
+public class LaTeXEditingActivity extends Activity {
 
-	private static final boolean TEST = false;
+	private static final boolean TESTING = false;
 
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -59,8 +62,6 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		}
 	};
 
-	private QuickTeXFragment special_symbols_pane;
-
 	private void confirmSave() {
 		if (current_document == null)
 			return;
@@ -70,16 +71,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		save_confirm_dialog.show();
 	}
 
-	@SuppressWarnings("unused")
-	private void hideQuickSpecialSymbolPane() {
-		if (special_symbols_pane != null)
-			getSupportFragmentManager().beginTransaction().hide(special_symbols_pane).commit();
-	}
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
+		// prepare document editing area
 		document_textview = (EditText) findViewById(R.id.document_area);
 		document_textview.setEditableFactory(new Editable.Factory() {
 
@@ -88,8 +84,20 @@ public class LaTeXEditingActivity extends FragmentActivity {
 				return new LaTeXStringBuilder(source);
 			}
 		});
-		showQuickSpecialSymbolPane();
-		if (TEST) {
+		// prepare quick insertion area
+		ExpandableListView insertion_listview = (ExpandableListView) findViewById(R.id.quick_insertion_items_listview);
+		final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
+		insertion_listview.setAdapter(adapter);
+		insertion_listview.setOnChildClickListener(new OnChildClickListener() {
+
+			@Override
+			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
+				if (current_document != null)
+					current_document.replaceSelection(adapter.getChild(groupPosition, childPosition));
+				return true;
+			}
+		});
+		if (TESTING) {
 			openDocument(new File(Environment.getExternalStorageDirectory(), "lambda.tex"));
 		} else {
 			Intent intent = getIntent();
@@ -150,21 +158,10 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			String file_content = Streams.readTextFile(file);
 			document_textview.setText(file_content);
 			current_document = (LaTeXStringBuilder) document_textview.getText();
-			special_symbols_pane.target_document = current_document;
+			// special_symbols_pane.target_document = current_document;
 			// showQuickSpecialSymbolPane();
 		} catch (IOException e) {
 			e.printStackTrace(System.out);
-		}
-	}
-
-	private void showQuickSpecialSymbolPane() {
-		if (special_symbols_pane == null) {
-			special_symbols_pane = QuickTeXFragment.newInstance(current_document);
-			getSupportFragmentManager().beginTransaction()
-					.replace(R.id.quick_insertion_items_fragment, special_symbols_pane).commit();
-		} else {
-			special_symbols_pane.target_document = current_document;
-			getSupportFragmentManager().beginTransaction().show(special_symbols_pane).commit();
 		}
 	}
 

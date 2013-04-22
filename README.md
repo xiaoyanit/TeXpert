@@ -1,26 +1,28 @@
 TeXpert
 =======
 
-TeX document preparation Android app
+LaTeX document preparation app for Android
 
-This app aims to be a TeX document development environment application like TeXMaker or TeXworks on PC.
+This app aims to be a TeX document development environment application like 
+TeXMaker or TeXworks on PC.
 
-The target of TeXpert is for tablets like Nexus 7:
+The target of TeXpert is for _tablets_ like Nexus 7:
 
- *  lack physical keyboard
+ * lack physical keyboard
+ * screen is reasonably big for document editing
+ * modern Android (4.2+)
  
- *  screen is reasonably wide for editing
- 
- *  modern Android 4.2+
- 
-Phone is not supported. The key features I expect are:
+Phone is not supported. I expect the following key features:
 
- 1.  Efficient input, complement (not replace) SwiftKey
+1. efficient input: _complementing_, not replacing, useful existing tools like _SwiftKey_;
+1. smart correction suggestion;
+1. button to compile with TeXPortal; and
+1. syntax highlighting.
  
- 2.  One-button to compile with TeXPortal
- 
- 3.  Smart correction
+These features are ordered based on perceived importance.
 
-(The list is ranked in order of importance.)
-
-Unlike their PC counterparts where one can easily type in the content. The unavailability of physical keyboard makes it substantially difficult to write on Nexus 7. Many text editor tends to treat LaTeX editing as a special case of code editing as this is prevalent in PC. However, I believe that they are very different.
+Unlike their PC counterparts where one can easily type in the content.
+The unavailability of physical keyboard makes it substantially more 
+laborious to write on Nexus 7. Many text editor tends to treat LaTeX editing 
+as a special case of code editing. This is a prevalent viewpoint on PC. 
+Yet I believe that they are fairly different.
