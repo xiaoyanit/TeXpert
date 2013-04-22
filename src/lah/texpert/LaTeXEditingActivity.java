@@ -13,9 +13,12 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -23,6 +26,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.OnChildClickListener;
+import android.widget.ExpandableListView.OnGroupExpandListener;
 import android.widget.Toast;
 
 /**
@@ -46,28 +50,25 @@ public class LaTeXEditingActivity extends Activity {
 
 	private FileDialog file_select_dialog;
 
+	private SharedPreferences pref;
+
 	private AlertDialog save_confirm_dialog;
 
 	private final OnClickListener save_doc_on_click = new OnClickListener() {
 
 		@Override
 		public void onClick(DialogInterface dialog, int which) {
-			try {
-				if (current_document != null && current_file != null)
-					Streams.writeStringToFile(current_document.toString(), current_file, false);
-			} catch (IOException e) {
-				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_save_document),
-						Toast.LENGTH_SHORT).show();
-			}
+			saveDocumentAs(current_file);
 		}
 	};
 
-	private void confirmSave() {
+	private void confirmOverwrite() {
 		if (current_document == null)
 			return;
 		if (save_confirm_dialog == null)
-			save_confirm_dialog = new AlertDialog.Builder(this).setTitle("Save document?")
-					.setPositiveButton("Save", save_doc_on_click).setNegativeButton("Cancel", null).create();
+			save_confirm_dialog = new AlertDialog.Builder(this).setTitle(getString(R.string.title_confirm_overwrite))
+					.setPositiveButton(getString(R.string.action_save), save_doc_on_click)
+					.setNegativeButton(getString(R.string.action_cancel), null).create();
 		save_confirm_dialog.show();
 	}
 
@@ -85,16 +86,26 @@ public class LaTeXEditingActivity extends Activity {
 			}
 		});
 		// prepare quick insertion area
-		ExpandableListView insertion_listview = (ExpandableListView) findViewById(R.id.quick_insertion_items_listview);
+		final ExpandableListView insertion_listview = (ExpandableListView) findViewById(R.id.quick_insertion_items_listview);
 		final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
 		insertion_listview.setAdapter(adapter);
 		insertion_listview.setOnChildClickListener(new OnChildClickListener() {
 
 			@Override
 			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-				if (current_document != null)
+				if (current_document != null) {
 					current_document.replaceSelection(adapter.getChild(groupPosition, childPosition));
+				}
 				return true;
+			}
+		});
+		insertion_listview.setOnGroupExpandListener(new OnGroupExpandListener() {
+
+			@Override
+			public void onGroupExpand(int groupPosition) {
+				if (adapter.current_expanding_group > 0 && adapter.current_expanding_group != groupPosition)
+					insertion_listview.collapseGroup(adapter.current_expanding_group);
+				adapter.current_expanding_group = groupPosition;
 			}
 		});
 		if (TESTING) {
@@ -112,6 +123,7 @@ public class LaTeXEditingActivity extends Activity {
 				current_document = (LaTeXStringBuilder) document_textview.getText();
 			}
 		}
+		pref = PreferenceManager.getDefaultSharedPreferences(this);
 	}
 
 	@Override
@@ -136,18 +148,62 @@ public class LaTeXEditingActivity extends Activity {
 			file_select_dialog.show();
 			return true;
 		case R.id.action_save:
-			confirmSave();
+			if (current_file == null) {
+				// Ask user to select a file to save as
+				final EditText file_path_field = new EditText(this);
+				new AlertDialog.Builder(this).setTitle(getString(R.string.title_save_as))
+						.setMessage("Please type the path to save file as").setView(file_path_field)
+						.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
+
+							@Override
+							public void onClick(DialogInterface arg0, int arg1) {
+								saveDocumentAs(new File(file_path_field.getText().toString()));
+							}
+						}).setNegativeButton(getString(R.string.action_cancel), null).show();
+			} else {
+				confirmOverwrite();
+			}
 			return true;
 		case R.id.action_send:
-			confirmSave();
+			confirmOverwrite();
 			try {
 				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file)), 0);
 			} catch (ActivityNotFoundException e) {
 				Toast.makeText(this, getString(R.string.message_cannot_send_texportal), Toast.LENGTH_SHORT).show();
 			}
 			return true;
+		case R.id.action_settings:
+			startActivity(new Intent(this, SettingsActivity.class));
+			return true;
+		case R.id.action_quit:
+			finish();
+			return true;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		if (document_textview == null)
+			return;
+
+		// Update the font size
+		String font_size = pref.getString(SettingsActivity.PREF_FONT_SIZE, "18");
+		try {
+			document_textview.setTextSize(Integer.parseInt(font_size));
+		} catch (Exception e) {
+			document_textview.setTextSize(18);
+		}
+
+		// Update the font family
+		String font_family = pref.getString(SettingsActivity.PREF_FONT_FAMILY, "Sans Serif");
+		if (font_family.equals("Sans Serif"))
+			document_textview.setTypeface(Typeface.SANS_SERIF);
+		else if (font_family.equals("Monospace"))
+			document_textview.setTypeface(Typeface.MONOSPACE);
+		else
+			document_textview.setTypeface(Typeface.SERIF);
 	}
 
 	private void openDocument(File file) {
@@ -158,11 +214,18 @@ public class LaTeXEditingActivity extends Activity {
 			String file_content = Streams.readTextFile(file);
 			document_textview.setText(file_content);
 			current_document = (LaTeXStringBuilder) document_textview.getText();
-			// special_symbols_pane.target_document = current_document;
-			// showQuickSpecialSymbolPane();
 		} catch (IOException e) {
 			e.printStackTrace(System.out);
 		}
 	}
 
+	private void saveDocumentAs(File file) {
+		try {
+			if (current_document != null && file != null)
+				Streams.writeStringToFile(current_document.toString(), file, false);
+		} catch (IOException e) {
+			Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_save_document),
+					Toast.LENGTH_SHORT).show();
+		}
+	}
 }

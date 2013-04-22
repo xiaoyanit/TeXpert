@@ -24,5 +24,11 @@
         android:orderInCategory="100"
         android:showAsAction="ifRoom"
         android:title="@string/action_settings"/>
+    <item
+        android:id="@+id/action_quit"
+        android:icon="@drawable/ic_action_quit"
+        android:orderInCategory="100"
+        android:showAsAction="ifRoom"
+        android:title="@string/action_quit"/>
 
 </menu>

@@ -17,7 +17,7 @@ public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 
 	private static final String[] categories = { "Special", "Escaped", "Text", "Math", "Greek1", "Greek2" };
 
-	private static final String[][] shortcuts = {
+	private static final String[][] insertion_items = {
 			// Special characters
 			{ "\\", "$", "%", "&", "#", "_", "~", "^", "{", "}", "(", ")", "[", "]" },
 			// Escaped special characters
@@ -25,7 +25,7 @@ public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 			// Common text mode commands
 			{ "\\emph", "\\begin{}\n\\end{}", "\\section{}", "\\subsection{}", "\\subsubsection{}",
 					"\\subsubsubsection{}", "\\paragraph{}", "\\subparagraph{}", "\\part{}", "\\chapter{}",
-					"\\usepackage", "\\documentclass{}", "\\author{}", "\\title" },
+					"\\usepackage{}", "\\documentclass{}", "\\author{}", "\\title{}" },
 			// Common math mode commands
 			{ "\\frac{}{}", "\\dfrac{}{}", "\\sqrt{}", "\\sqrt[]{}", "\\rightarrow", "\\leftarrow", "\\mapsto" },
 			// Capitalized Greek letters
@@ -36,7 +36,9 @@ public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 			{ "\\alpha", "\\beta", "\\gamma", "\\delta", "\\epsilon", "\\varepsilon", "\\zeta", "\\eta", "\\theta",
 					"\\vartheta", "\\iota", "\\kappa", "\\varkappa", "\\lambda", "\\mu", "\\nu", "\\xi", "\\omicron",
 					"\\pi", "\\varpi", "\\rho", "\\varrho", "\\sigma", "\\varsigma", "\\tau", "\\upsilon", "\\phi",
-					"\\varphi", "\\chi", "\\psi", "\\omega", } };
+					"\\varphi", "\\chi", "\\psi", "\\omega" } };
+
+	int current_expanding_group = -1;
 
 	private final LayoutInflater inflater;
 
@@ -46,7 +48,7 @@ public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 
 	@Override
 	public String getChild(int groupPosition, int childPosition) {
-		return shortcuts[groupPosition][childPosition];
+		return insertion_items[groupPosition][childPosition];
 	}
 
 	@Override
@@ -56,7 +58,7 @@ public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 
 	@Override
 	public int getChildrenCount(int groupPosition) {
-		return shortcuts[groupPosition].length;
+		return insertion_items[groupPosition].length;
 	}
 
 	@Override
@@ -72,7 +74,7 @@ public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 
 	@Override
 	public int getGroupCount() {
-		return shortcuts.length;
+		return insertion_items.length;
 	}
 
 	@Override

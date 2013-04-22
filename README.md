@@ -14,7 +14,7 @@ The target of TeXpert is for _tablets_ like Nexus 7:
  
 Phone is not supported. I expect the following key features:
 
-1. efficient input: _complementing_, not replacing, useful existing tools like _SwiftKey_;
+1. efficient input: _complementing_, *not replacing*, useful existing tools like _SwiftKey_;
 1. smart correction suggestion;
 1. button to compile with TeXPortal; and
 1. syntax highlighting.
@@ -25,4 +25,7 @@ Unlike their PC counterparts where one can easily type in the content.
 The unavailability of physical keyboard makes it substantially more 
 laborious to write on Nexus 7. Many text editor tends to treat LaTeX editing 
 as a special case of code editing. This is a prevalent viewpoint on PC. 
-Yet I believe that they are fairly different.
+Yet I believe that source code and LaTeX editing are fairly different things.
+
+What SwiftKey has to offer and what it lacks?
+---------------------------------------------

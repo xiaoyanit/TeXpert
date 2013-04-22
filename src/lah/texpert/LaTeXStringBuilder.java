@@ -169,7 +169,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	public void replaceSelection(String content) {
 		int sel_start = Selection.getSelectionStart(this);
 		int sel_end = Selection.getSelectionEnd(this);
-		if (sel_start >= 0 && sel_start < length() && sel_end >= 0 && sel_end < length())
+		if (0 <= sel_start && sel_start <= sel_end)
 			replace(sel_start, sel_end, content);
 	}
 
