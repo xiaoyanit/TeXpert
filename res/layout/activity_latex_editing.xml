@@ -2,33 +2,24 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
+    android:baselineAligned="false"
+    android:orientation="horizontal"
     tools:context=".LaTeXEditingActivity" >
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dip"
-        android:layout_weight="1"
-        android:background="@drawable/textarea_background" >
-
-        <lah.widgets.TextArea
-            xmlns:android="http://schemas.android.com/apk/res/android"
-            android:id="@+id/document_area"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:focusable="true"
-            android:focusableInTouchMode="true" />
-    </ScrollView>
-
     <FrameLayout
-        android:id="@+id/special_symbols_fragment"
+        android:id="@+id/quick_insertion_items_fragment"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent" />
+
+    <EditText
+        android:id="@+id/document_area"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom" >
-    </FrameLayout>
+        android:layout_height="match_parent"
+        android:background="@drawable/textarea_background"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:textSize="20sp"
+        android:typeface="monospace" />
 
 </LinearLayout>

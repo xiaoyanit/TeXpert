@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 
 import lah.spectre.stream.Streams;
-import lah.widgets.TextArea;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.AlertDialog;
@@ -17,8 +16,10 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.app.FragmentActivity;
+import android.text.Editable;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
 import android.widget.Toast;
 
 /**
@@ -29,7 +30,7 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends FragmentActivity {
 
-	private static final boolean TEST = true;
+	private static final boolean TEST = false;
 
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -38,65 +39,71 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private File current_file;
 
-	private TextArea document_textview;
+	private EditText document_textview;
 
 	private FileDialog file_select_dialog;
 
 	private AlertDialog save_confirm_dialog;
 
-	private SpecialSymbolsFragment special_symbols_pane;
+	private final OnClickListener save_doc_on_click = new OnClickListener() {
+
+		@Override
+		public void onClick(DialogInterface dialog, int which) {
+			try {
+				if (current_document != null && current_file != null)
+					Streams.writeStringToFile(current_document.toString(), current_file, false);
+			} catch (IOException e) {
+				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_save_document),
+						Toast.LENGTH_SHORT).show();
+			}
+		}
+	};
+
+	private QuickTeXFragment special_symbols_pane;
 
 	private void confirmSave() {
+		if (current_document == null)
+			return;
 		if (save_confirm_dialog == null)
 			save_confirm_dialog = new AlertDialog.Builder(this).setTitle("Save document?")
-					.setPositiveButton("Save", new OnClickListener() {
-
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							try {
-								Streams.writeStringToFile(((TextArea) findViewById(R.id.document_area)).getText()
-										.toString(), current_file, false);
-							} catch (IOException e) {
-								Toast.makeText(LaTeXEditingActivity.this, "Fail to save document!", Toast.LENGTH_SHORT)
-										.show();
-							}
-						}
-					}).setNegativeButton("Cancel", null).create();
+					.setPositiveButton("Save", save_doc_on_click).setNegativeButton("Cancel", null).create();
 		save_confirm_dialog.show();
 	}
 
-	private void handleIntent() {
-		Intent intent = getIntent();
-		Uri data;
-		File file;
-		if ((data = intent.getData()) != null && data.getScheme().equals("file")
-				&& (file = new File(data.getPath())).exists()) {
-			intent.setData(null);
-			openDocument(file);
-		}
-	}
-
+	@SuppressWarnings("unused")
 	private void hideQuickSpecialSymbolPane() {
 		if (special_symbols_pane != null)
 			getSupportFragmentManager().beginTransaction().hide(special_symbols_pane).commit();
-	}
-
-	public void insertAtCursor(CharSequence content) {
-		if (document_textview == null)
-			document_textview = (TextArea) findViewById(R.id.document_area);
-		document_textview.insertAtCursor(content);
 	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
-		if (TEST) {
-			openDocument(new File(Environment.getExternalStorageDirectory(), "testlatex.tex"));
-		} else {
-			handleIntent();
-		}
+		document_textview = (EditText) findViewById(R.id.document_area);
+		document_textview.setEditableFactory(new Editable.Factory() {
 
+			@Override
+			public Editable newEditable(CharSequence source) {
+				return new LaTeXStringBuilder(source);
+			}
+		});
+		showQuickSpecialSymbolPane();
+		if (TEST) {
+			openDocument(new File(Environment.getExternalStorageDirectory(), "lambda.tex"));
+		} else {
+			Intent intent = getIntent();
+			Uri data;
+			File file;
+			if ((data = intent.getData()) != null && data.getScheme().equals("file")
+					&& (file = new File(data.getPath())).exists()) {
+				intent.setData(null);
+				openDocument(file);
+			} else {
+				document_textview.setText("");
+				current_document = (LaTeXStringBuilder) document_textview.getText();
+			}
+		}
 	}
 
 	@Override
@@ -138,16 +145,13 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private void openDocument(File file) {
 		if (file == null || !file.exists())
 			return;
-		hideQuickSpecialSymbolPane();
 		try {
 			current_file = file;
 			String file_content = Streams.readTextFile(file);
-			if (document_textview == null) {
-				document_textview = (TextArea) findViewById(R.id.document_area);
-			}
-			current_document = new LaTeXStringBuilder(document_textview, file_content);
-			document_textview.setText(current_document);
-			showQuickSpecialSymbolPane();
+			document_textview.setText(file_content);
+			current_document = (LaTeXStringBuilder) document_textview.getText();
+			special_symbols_pane.target_document = current_document;
+			// showQuickSpecialSymbolPane();
 		} catch (IOException e) {
 			e.printStackTrace(System.out);
 		}
@@ -155,10 +159,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private void showQuickSpecialSymbolPane() {
 		if (special_symbols_pane == null) {
-			special_symbols_pane = SpecialSymbolsFragment.newInstance((TextArea) findViewById(R.id.document_area));
-			getSupportFragmentManager().beginTransaction().replace(R.id.special_symbols_fragment, special_symbols_pane)
-					.commit();
+			special_symbols_pane = QuickTeXFragment.newInstance(current_document);
+			getSupportFragmentManager().beginTransaction()
+					.replace(R.id.quick_insertion_items_fragment, special_symbols_pane).commit();
 		} else {
+			special_symbols_pane.target_document = current_document;
 			getSupportFragmentManager().beginTransaction().show(special_symbols_pane).commit();
 		}
 	}
