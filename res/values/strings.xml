@@ -16,10 +16,23 @@
     <!-- Error messages -->
     <string name="message_cannot_send_texportal">Cannot send document for compilation: TeXPortal is not installed!</string>
     <string name="message_cannot_save_document"> Cannot save document!</string>
+    <string name="message_cannot_open_document"> Cannot open document!</string>
 
     <!-- Settings -->
     <string name="pref_header_editor">Editing</string>
     <string name="pref_title_font_size">Font size</string>
+
+    <string-array name="font_sizes">
+        <item>18</item>
+        <item>20</item>
+        <item>24</item>
+        <item>28</item>
+        <item>30</item>
+        <item>32</item>
+        <item>36</item>
+        <item>40</item>
+    </string-array>
+
     <string name="pref_title_font_family">Font family</string>
 
     <string-array name="font_families">
@@ -27,7 +40,7 @@
         <item>Monospace</item>
         <item>Serif</item>
     </string-array>
-    
+
     <!-- Dialogs titles -->
     <string name="title_confirm_overwrite">Overwrite?</string>
     <string name="title_save_as">Save as</string>

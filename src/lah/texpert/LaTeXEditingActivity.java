@@ -1,7 +1,6 @@
 package lah.texpert;
 
 import java.io.File;
-import java.io.IOException;
 
 import lah.spectre.stream.Streams;
 import lah.widgets.fileview.FileDialog;
@@ -37,7 +36,9 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends Activity {
 
-	private static final boolean TESTING = false;
+	private static final boolean TESTING = true;
+
+	private static final String TEST_FILE = "lambda.tex"; // "testlatex.tex";
 
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -76,7 +77,8 @@ public class LaTeXEditingActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
-		// prepare document editing area
+		
+		// Prepare document editing area
 		document_textview = (EditText) findViewById(R.id.document_area);
 		document_textview.setEditableFactory(new Editable.Factory() {
 
@@ -85,7 +87,8 @@ public class LaTeXEditingActivity extends Activity {
 				return new LaTeXStringBuilder(source);
 			}
 		});
-		// prepare quick insertion area
+		
+		// Prepare quick insertion area
 		final ExpandableListView insertion_listview = (ExpandableListView) findViewById(R.id.quick_insertion_items_listview);
 		final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
 		insertion_listview.setAdapter(adapter);
@@ -108,8 +111,10 @@ public class LaTeXEditingActivity extends Activity {
 				adapter.current_expanding_group = groupPosition;
 			}
 		});
+		
+		// Handling user intent
 		if (TESTING) {
-			openDocument(new File(Environment.getExternalStorageDirectory(), "lambda.tex"));
+			openDocument(new File(Environment.getExternalStorageDirectory(), TEST_FILE));
 		} else {
 			Intent intent = getIntent();
 			Uri data;
@@ -214,8 +219,8 @@ public class LaTeXEditingActivity extends Activity {
 			String file_content = Streams.readTextFile(file);
 			document_textview.setText(file_content);
 			current_document = (LaTeXStringBuilder) document_textview.getText();
-		} catch (IOException e) {
-			e.printStackTrace(System.out);
+		} catch (Exception e) {
+			Toast.makeText(this, getString(R.string.message_cannot_open_document), Toast.LENGTH_SHORT).show();
 		}
 	}
 
@@ -223,9 +228,8 @@ public class LaTeXEditingActivity extends Activity {
 		try {
 			if (current_document != null && file != null)
 				Streams.writeStringToFile(current_document.toString(), file, false);
-		} catch (IOException e) {
-			Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_save_document),
-					Toast.LENGTH_SHORT).show();
+		} catch (Exception e) {
+			Toast.makeText(this, getString(R.string.message_cannot_save_document), Toast.LENGTH_SHORT).show();
 		}
 	}
 }

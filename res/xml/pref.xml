@@ -2,12 +2,14 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <PreferenceCategory android:title="@string/pref_header_editor" >
-        <EditTextPreference
+        <ListPreference
             android:defaultValue="18"
+            android:entries="@array/font_sizes"
+            android:entryValues="@array/font_sizes"
             android:key="font_size"
             android:title="@string/pref_title_font_size" />
-
         <ListPreference
+            android:defaultValue="Sans Serif"
             android:entries="@array/font_families"
             android:entryValues="@array/font_families"
             android:key="font_family"
