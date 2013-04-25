@@ -23,6 +23,7 @@
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:gravity="top"
+        android:hint=""
         android:inputType="textMultiLine|textNoSuggestions"
         android:saveEnabled="false"
         android:scrollbars="vertical" />

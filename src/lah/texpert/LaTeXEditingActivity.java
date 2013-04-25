@@ -36,9 +36,9 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends Activity {
 
-	private static final boolean TESTING = true;
-
 	private static final String TEST_FILE = "lambda.tex"; // "testlatex.tex";
+
+	private static final boolean TESTING = false;
 
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -77,7 +77,7 @@ public class LaTeXEditingActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
-		
+
 		// Prepare document editing area
 		document_textview = (EditText) findViewById(R.id.document_area);
 		document_textview.setEditableFactory(new Editable.Factory() {
@@ -87,7 +87,7 @@ public class LaTeXEditingActivity extends Activity {
 				return new LaTeXStringBuilder(source);
 			}
 		});
-		
+
 		// Prepare quick insertion area
 		final ExpandableListView insertion_listview = (ExpandableListView) findViewById(R.id.quick_insertion_items_listview);
 		final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
@@ -111,7 +111,7 @@ public class LaTeXEditingActivity extends Activity {
 				adapter.current_expanding_group = groupPosition;
 			}
 		});
-		
+
 		// Handling user intent
 		if (TESTING) {
 			openDocument(new File(Environment.getExternalStorageDirectory(), TEST_FILE));

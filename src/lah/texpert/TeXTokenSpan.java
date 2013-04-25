@@ -18,21 +18,30 @@ public class TeXTokenSpan extends CharacterStyle implements UpdateAppearance, Co
 	static final int COLOR_COMMAND = 0xFF0000FF, COLOR_COMMENT = 0xFFA0A0A0, COLOR_SYMBOLS = 0xFFCC8000,
 			COLOR_FORMULA = 0xFF00CC00;
 
-	static final int FLAG_COMMAND = 0x40000000, FLAG_COMMENT = 0x80000000;
+	static final int FLAG_COMMAND = 0x40000000, FLAG_COMMENT = 0x80000000, FLAG_SYMBOL = 0x10000000;
 
 	/**
 	 * Mask to extract first two MSBs and the remaining 30 lower bits
 	 */
-	static final int MASK_TOKEN_TYPE = 0xC0000000, MASK_VALUE = 0x3FFFFFFF;
+	static final int MASK_TOKEN_TYPE = 0xC0000000, MASK_POSITION = 0x3FFFFFFF;
 
 	/**
 	 * The first two most-significant-bits represents the token type
 	 */
-	int position;
+	private int position;
 
-	public TeXTokenSpan(CharSequence text, int initial_position) {
-		char c = text.charAt(initial_position);
-		position = initial_position | (c == '%' ? FLAG_COMMENT : (c == '\\' ? FLAG_COMMAND : 0));
+	public TeXTokenSpan(CharSequence text, int position, boolean is_comment) {
+		if (is_comment) {
+			this.position = position | FLAG_COMMENT;
+		} else {
+			this.position = position;
+			char c = text.charAt(position);
+			if (c == '\\' && position + 1 < text.length()) {
+				char nc = text.charAt(position + 1);
+				if (('A' <= nc && nc <= 'Z') || ('a' <= nc && nc <= 'z'))
+					this.position |= FLAG_COMMAND;
+			}
+		}
 	}
 
 	@Override
@@ -40,37 +49,12 @@ public class TeXTokenSpan extends CharacterStyle implements UpdateAppearance, Co
 		return position - span.position;
 	}
 
-	// TODO Should use newline and symbol indexer instead
-	public int getSpanEnd(CharSequence text) {
-		// consideration for line comment
-		int position = this.position & MASK_VALUE;
-		char c = text.charAt(position);
-		int l = text.length();
-		if (c == '%') {
-			int e = position + 1;
-			while (e < l)
-				if (text.charAt(e) == '\n')
-					break;
-				else
-					e++;
-			return e;
-		}
-		if (c == '\\') {
-			int e = position + 1;
-			while (e < l) {
-				char ce = text.charAt(e);
-				if (Character.isLetter(ce))
-					e++;
-				else
-					break;
-			}
-			return e;
-		}
-		return position + 1;
+	public int getPosition() {
+		return position & MASK_POSITION;
 	}
 
-	public int getSpanStart() {
-		return position & MASK_VALUE;
+	public boolean isComment() {
+		return (position & FLAG_COMMENT) == FLAG_COMMENT;
 	}
 
 	@Override
@@ -83,11 +67,7 @@ public class TeXTokenSpan extends CharacterStyle implements UpdateAppearance, Co
 			ds.setColor(COLOR_COMMENT);
 			break;
 		default:
-			// ds.setColor(COLOR_COMMENT);
+			ds.setColor(COLOR_SYMBOLS);
 		}
-	}
-
-	public void setPosition(int pos) {
-		position = pos;
 	}
 }
