@@ -42,15 +42,15 @@ public abstract class CharIndexer {
 	 * 
 	 * @param pos
 	 *            Position in the text which we wish to find next occurrence
-	 * @return Find the minimum {@code index} such that {@code markers[index] >= pos}; expect {@code get(index)} is a
-	 *         marked position
+	 * @return Minimum {@code i} such that {@code get(i) >= pos}; expect {@code get(i)} is an indexed position If there
+	 *         is no such index, {@link CharIndexer#size()} should be returned.
 	 */
 	public int findFirst(int pos) {
 		// search for pos in the first region (if possible)
 		if (first_segment_end > 0 && markers[first_segment_end - 1] >= pos) {
 			int l = Arrays.binarySearch(markers, 0, first_segment_end, pos);
 			int r = l < 0 ? -1 - l : l;
-			return r == first_segment_end ? second_segment_start : r;
+			return r;
 		} else {
 			// first region is empty or markers[marker_end - 1] < pos, we need to search for pos in the second region
 			int l = Arrays.binarySearch(markers, second_segment_start, markers.length, pos - second_segment_delta);
@@ -66,7 +66,9 @@ public abstract class CharIndexer {
 	 * @return -1 if such value does not exists.
 	 */
 	public int get(int n) {
-		if (n < first_segment_end) {
+		if (n < 0) {
+			return -1;
+		} else if (n < first_segment_end) {
 			return markers[n];
 		} else {
 			// n-th occurrence should be somewhere in the second segment
@@ -88,7 +90,7 @@ public abstract class CharIndexer {
 						markers[first_segment_end++] = i;
 					}
 				}
-				// after this, markers[0..first_segment_end) contains all positions of idx in text
+				// after this, markers[0..first_segment_end) indexed occurrences' positions
 			} catch (Exception e) {
 				e.printStackTrace(System.out);
 			}
@@ -96,20 +98,6 @@ public abstract class CharIndexer {
 	}
 
 	abstract boolean isIndexedPosition(CharSequence text, int pos);
-
-	/**
-	 * The next valid position in marker
-	 * 
-	 * @param n
-	 *            The position to find the next
-	 * @return Next valid index after {@code marker_index}; if the result is greater than {@code markers.length} then
-	 *         the input {@code marker_index} is the final one.
-	 */
-	int next(int n) {
-		if (n == first_segment_end - 1)
-			return second_segment_start;
-		return n + 1;
-	}
 
 	/**
 	 * Update the index when a substring is replaced.
@@ -125,21 +113,27 @@ public abstract class CharIndexer {
 	 * @param tbend
 	 *            End index of {@code tb} (exclusive)
 	 */
-	public void onReplace(int start, int end, CharSequence tb, int tbstart, int tbend) {
+	public void replace(CharSequence text, int start, int end, CharSequence tb, int tbstart, int tbend) {
+		// Log.v("onReplace", "Replace [" + start + ".." + end + ") with " + tb.subSequence(tbstart, tbend).toString());
+		// Log.v(this.toString(), "STATE BEFORE REPLACE" + getStateString());
 		int ps = findFirst(start), pe = findFirst(end);
 
 		// First step: Delete [start..end) ==> delete markers[ps..pe)
 		// After this, we expect first_segment_end is storage location of ps and second_segment_start is storage
 		// location of pe; so that later on we can easily insert content.
 		if (ps < first_segment_end && pe >= first_segment_end) {
-			// easiest case: ps and pe are on different segments
+			// Log.v("onReplace", "Case 1: " + "ps = " + ps + "; pe = " + pe);
+			// Easiest case: ps and pe are on different segments
 			// adjusting the segment sizes to get the effect of removal
-			first_segment_end = ps;
 			second_segment_start += pe - first_segment_end;
-		} else if (ps < first_segment_end) {
+			// FIX BUG: Must assign first_segment_end after second_segment_start because the above assignment assume on
+			// the old (original) value of first_segment_end
+			first_segment_end = ps;
+		} else if (pe < first_segment_end) {
+			// FIX BUG: pe < first_segment_end, NOT ps
 			// ps, pe are both on the first segment i.e. ps <= pe < first_segment_end
 			// we move [pe...first_segment_end) to the second segment
-			int len = first_segment_end - pe;
+			final int len = first_segment_end - pe;
 			System.arraycopy(markers, pe, markers, second_segment_start - len, len);
 			if (second_segment_delta != 0) {
 				for (int k = second_segment_start - len; k < second_segment_start; k++)
@@ -147,17 +141,23 @@ public abstract class CharIndexer {
 			}
 			first_segment_end = ps; // retract
 			second_segment_start -= len; // extend
+			// Log.v("onReplace", "Case 2");
 		} else {
 			// ps, pe are both on the second segment i.e. pe >= ps >= first_segment_end
-			// move [second_segment_start..ps) to the first fragment
-			int len = ps - first_segment_end;
+			// move [first_segment_end..ps) which actually is located [second_segment_start..?) to the first fragment
+			final int len = ps - first_segment_end;
 			System.arraycopy(markers, second_segment_start, markers, first_segment_end, len);
 			if (second_segment_delta != 0) {
-				for (int k = second_segment_start - len; k < second_segment_start; k++)
+				// FIX BUG: Wrong Loop! We want to adjust values in [first_segment_end..ps)!
+				// for (int k = second_segment_start - len; k < second_segment_start; k++)
+				// markers[k] += second_segment_delta;
+				for (int k = first_segment_end; k < ps; k++)
 					markers[k] += second_segment_delta;
 			}
-			first_segment_end += len; // extend
+			// FIX BUG: Similar mistake: second_segment_start assumes old value of first_segment_end
 			second_segment_start += (pe - first_segment_end); // retract
+			first_segment_end += len; // extend
+			// Log.v("onReplace", "Case 3");
 		}
 
 		// Second step: Adjust second_segment_delta with number of characters added
@@ -165,12 +165,15 @@ public abstract class CharIndexer {
 
 		// Third step: Insert tb[tbstart..tbend) in
 		// Note that the current first_segment_end mark the previous location of ps
-		// we just need to add `correct` indices of `idx` starting from first_segment_end
+		// we just need to add `correct` indices starting from first_segment_end
 		for (int i = tbstart; i < tbend; i++) {
 			if (isIndexedPosition(tb, i)) {
-				markers[first_segment_end++] = i - tbstart + start;
+				// FIX BUG: Adjust first_segment_end after assignment!
+				markers[first_segment_end] = i - tbstart + start;
+				first_segment_end++;
 			}
 		}
+		// Log.v(this.toString(), "STATE AFTER REPLACE" + getStateString());
 	}
 
 	/**
@@ -182,18 +185,15 @@ public abstract class CharIndexer {
 		return markers.length - second_segment_start + first_segment_end;
 	}
 
-	/**
-	 * Assign the i-th occurrence of `idx` to be at the v-th character of the text
-	 * 
-	 * @param i
-	 * @param v
-	 */
-	void store(int i, int v) {
-		if (i >= first_segment_end) {
-			i = second_segment_start + (i - first_segment_end);
-			markers[i] = v - second_segment_delta;
-		} else {
-			markers[i] = v;
-		}
+	String getStateString() {
+		StringBuilder result = new StringBuilder("Indexed = [0.." + first_segment_end + ") U [" + second_segment_start
+				+ ".." + markers.length + "] = [");
+		for (int i = 0; i < first_segment_end; i++)
+			result.append(markers[i] + ", ");
+		result.append("] U [");
+		for (int i = second_segment_start; i < markers.length; i++)
+			result.append((markers[i] + second_segment_delta) + ", ");
+		return result.append("]").toString();
 	}
+
 }

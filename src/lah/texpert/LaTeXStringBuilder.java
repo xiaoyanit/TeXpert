@@ -51,20 +51,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					else
 						break;
 				}
-				return e; // If the following char is not letter, this is automatically `position + 1`
+				// If the following char is not letter, this is automatically `position + 1`
+				return e;
 			}
 			return position + 1;
 		}
 		return super.getSpanEnd(what);
 	}
-
-	// @Override
-	// public int getSpanFlags(Object what) {
-	// if (what instanceof TeXTokenSpan) {
-	// return SPAN_EXCLUSIVE_EXCLUSIVE;
-	// }
-	// return super.getSpanFlags(what);
-	// }
 
 	/**
 	 * Assumption: [start..end) is a subsequence of a single text line!
@@ -76,11 +69,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			// First, we extend the range to contain a full line of text
 			int nlend = indexers[NEWLINE].findFirst(end);
 			end = indexers[NEWLINE].get(nlend);
+			if (end < 0) // no new line after original `end` ==> last line
+				end = length();
 			// If [start..end) is not the first line then set start to first character after the previous new line;
 			// otherwise set it to the beginning of text
-			start = (nlend >= 1) ? indexers[NEWLINE].get(nlend - 1) + 1 : 0;
-			if (end < 0) // no more new line after end
-				end = length();
+			start = (nlend > 0) ? indexers[NEWLINE].get(nlend - 1) + 1 : 0;
 
 			// Percents in [start..end) are the [pcistart..pciend)^th percent of the whole text
 			int pcistart = indexers[PERCENT].findFirst(start);
@@ -90,7 +83,20 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int pci_nonesc = pcistart;
 			for (; pci_nonesc < pciend; pci_nonesc++) {
 				int pcpos = indexers[PERCENT].get(pci_nonesc);
-				if (pcpos >= 1 && charAt(pcpos - 1) != '\\')
+				// FIX BUG: This might be wrong if we determine if this % is escaped simply by looking if the previous
+				// character is a backslash! For illustration, % in " \\\\%" is also a non-escaped %!
+				// TODO Fix the same mistake for escaped command or other special symbol case
+				int pos = pcpos - 1;
+				int num_backslash_bef = 0;
+				while (pos >= start) {
+					if (charAt(pos) == '\\') {
+						num_backslash_bef++;
+						pos--;
+					} else
+						break;
+				}
+				// An even number of backslash (0, 2, 4, etc.) before this % indicates that this is not an escaped one.
+				if ((num_backslash_bef & 1) == 0)
 					break;
 			}
 			int comment_start = end;
@@ -109,8 +115,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			TeXTokenSpan[] result = new TeXTokenSpan[bsend - bsstart + has_comment];
 			if (has_comment > 0)
 				result[0] = new TeXTokenSpan(this, comment_start, true);
-			for (int bs = bsstart; bs < bsend; bs++)
-				result[bs - bsstart + has_comment] = new TeXTokenSpan(this, indexers[SPECIAL].get(bs), false);
+			for (int bs = bsstart; bs < bsend; bs++) {
+				int pos = indexers[SPECIAL].get(bs);
+				// Log.v("specialsymbol", "@" + pos);
+				result[bs - bsstart + has_comment] = new TeXTokenSpan(this, pos, false);
+			}
 			return (T[]) result;
 		}
 		return super.getSpans(start, end, type);
@@ -129,7 +138,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	public LaTeXStringBuilder replace(int start, int end, CharSequence tb, int tbstart, int tbend) {
 		// Update the indexers and then invoke superclass's method
 		for (int i = 0; i < indexers.length; i++)
-			indexers[i].onReplace(start, end, tb, tbstart, tbend);
+			indexers[i].replace(this, start, end, tb, tbstart, tbend);
 		super.replace(start, end, tb, tbstart, tbend);
 		return this;
 	}
