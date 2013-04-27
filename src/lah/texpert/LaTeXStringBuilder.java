@@ -17,15 +17,31 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
 
-	private CharIndexer[] indexers;
+	private static CharIndexer[] indexers;
 
 	public LaTeXStringBuilder(CharSequence text) {
 		super(text);
-		// Initialize the indices
-		indexers = new CharIndexer[3];
-		indexers[PERCENT] = new SingleCharIndexer(text, '%');
-		indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
-		indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '^', '~', '%');
+		
+		// Initialize the indexers
+		if (indexers == null)
+			indexers = new CharIndexer[3];
+		for (int i = 0; i < indexers.length; i++) {
+			if (indexers[i] == null) {
+				switch (i) {
+				case PERCENT:
+					indexers[PERCENT] = new SingleCharIndexer(text, '%');
+					break;
+				case NEWLINE:
+					indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
+					break;
+				case SPECIAL:
+					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '^', '~', '%');
+					break;
+				}
+			} else {
+				indexers[i].initialize(text);
+			}
+		}
 	}
 
 	@Override

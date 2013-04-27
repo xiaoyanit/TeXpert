@@ -29,12 +29,7 @@ public abstract class CharIndexer {
 	private int[] markers;
 
 	protected CharIndexer() {
-		// pre-allocated, this takes 1MB
-		markers = new int[1 << 18];
-		// both segments initially empty
-		first_segment_end = 0;
-		second_segment_start = markers.length;
-		second_segment_delta = 0;
+		initialize(null);
 	}
 
 	/**
@@ -78,26 +73,36 @@ public abstract class CharIndexer {
 	}
 
 	/**
-	 * Initialize this indexer with a piece of text
+	 * Initialize this indexer to index a piece of text
 	 * 
 	 * @param text
 	 */
-	protected final void initialize(CharSequence text) {
-		if (text != null) {
-			try {
-				for (int i = 0; i < text.length(); i++) {
-					if (isIndexedPosition(text, i)) {
-						markers[first_segment_end++] = i;
-					}
+	public final void initialize(CharSequence text) {
+		// pre-allocated, this takes 1MB
+		if (markers == null)
+			markers = new int[1 << 18];
+
+		// both segments initially empty
+		first_segment_end = 0;
+		second_segment_start = markers.length;
+		second_segment_delta = 0;
+
+		// populate the index for input text
+		if (text == null)
+			return;
+		try {
+			for (int i = 0; i < text.length(); i++) {
+				if (isIndexedPosition(text, i)) {
+					markers[first_segment_end++] = i;
 				}
-				// after this, markers[0..first_segment_end) indexed occurrences' positions
-			} catch (Exception e) {
-				e.printStackTrace(System.out);
 			}
+			// after this, markers[0..first_segment_end) indexed occurrences' positions
+		} catch (Exception e) {
+			e.printStackTrace(System.out);
 		}
 	}
 
-	abstract boolean isIndexedPosition(CharSequence text, int pos);
+	public abstract boolean isIndexedPosition(CharSequence text, int pos);
 
 	/**
 	 * Update the index when a substring is replaced.
@@ -114,23 +119,18 @@ public abstract class CharIndexer {
 	 *            End index of {@code tb} (exclusive)
 	 */
 	public void replace(CharSequence text, int start, int end, CharSequence tb, int tbstart, int tbend) {
-		// Log.v("onReplace", "Replace [" + start + ".." + end + ") with " + tb.subSequence(tbstart, tbend).toString());
+		// Log.v("replace", "Replace [" + start + ".." + end + ") with " + tb.subSequence(tbstart, tbend).toString());
 		// Log.v(this.toString(), "STATE BEFORE REPLACE" + getStateString());
-		int ps = findFirst(start), pe = findFirst(end);
+		final int ps = findFirst(start), pe = findFirst(end);
 
 		// First step: Delete [start..end) ==> delete markers[ps..pe)
 		// After this, we expect first_segment_end is storage location of ps and second_segment_start is storage
 		// location of pe; so that later on we can easily insert content.
 		if (ps < first_segment_end && pe >= first_segment_end) {
-			// Log.v("onReplace", "Case 1: " + "ps = " + ps + "; pe = " + pe);
-			// Easiest case: ps and pe are on different segments
-			// adjusting the segment sizes to get the effect of removal
+			// Easiest case: ps and pe are on different segments ==> simply adjust the segment sizes to achieve the
+			// effect of removal
 			second_segment_start += pe - first_segment_end;
-			// FIX BUG: Must assign first_segment_end after second_segment_start because the above assignment assume on
-			// the old (original) value of first_segment_end
-			first_segment_end = ps;
 		} else if (pe < first_segment_end) {
-			// FIX BUG: pe < first_segment_end, NOT ps
 			// ps, pe are both on the first segment i.e. ps <= pe < first_segment_end
 			// we move [pe...first_segment_end) to the second segment
 			final int len = first_segment_end - pe;
@@ -139,33 +139,26 @@ public abstract class CharIndexer {
 				for (int k = second_segment_start - len; k < second_segment_start; k++)
 					markers[k] -= second_segment_delta;
 			}
-			first_segment_end = ps; // retract
 			second_segment_start -= len; // extend
-			// Log.v("onReplace", "Case 2");
 		} else {
 			// ps, pe are both on the second segment i.e. pe >= ps >= first_segment_end
 			// move [first_segment_end..ps) which actually is located [second_segment_start..?) to the first fragment
 			final int len = ps - first_segment_end;
 			System.arraycopy(markers, second_segment_start, markers, first_segment_end, len);
 			if (second_segment_delta != 0) {
-				// FIX BUG: Wrong Loop! We want to adjust values in [first_segment_end..ps)!
-				// for (int k = second_segment_start - len; k < second_segment_start; k++)
-				// markers[k] += second_segment_delta;
 				for (int k = first_segment_end; k < ps; k++)
 					markers[k] += second_segment_delta;
 			}
-			// FIX BUG: Similar mistake: second_segment_start assumes old value of first_segment_end
 			second_segment_start += (pe - first_segment_end); // retract
-			first_segment_end += len; // extend
-			// Log.v("onReplace", "Case 3");
 		}
+		first_segment_end = ps;
 
 		// Second step: Adjust second_segment_delta with number of characters added
 		second_segment_delta += (tbend - tbstart) - (end - start);
 
 		// Third step: Insert tb[tbstart..tbend) in
 		// Note that the current first_segment_end mark the previous location of ps
-		// we just need to add `correct` indices starting from first_segment_end
+		// we just need to add `correct` indices starting from first_segment_end = ps
 		for (int i = tbstart; i < tbend; i++) {
 			if (isIndexedPosition(tb, i)) {
 				// FIX BUG: Adjust first_segment_end after assignment!
@@ -186,7 +179,7 @@ public abstract class CharIndexer {
 	}
 
 	String getStateString() {
-		StringBuilder result = new StringBuilder("Indexed = [0.." + first_segment_end + ") U [" + second_segment_start
+		StringBuilder result = new StringBuilder("Index[0.." + first_segment_end + ") U [" + second_segment_start
 				+ ".." + markers.length + "] = [");
 		for (int i = 0; i < first_segment_end; i++)
 			result.append(markers[i] + ", ");

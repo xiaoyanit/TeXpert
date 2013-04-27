@@ -13,7 +13,7 @@ public class NonLetterIndexer extends CharIndexer {
 	}
 
 	@Override
-	boolean isIndexedPosition(CharSequence text, int pos) {
+	public boolean isIndexedPosition(CharSequence text, int pos) {
 		char ch = text.charAt(pos);
 		return (ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z');
 	}

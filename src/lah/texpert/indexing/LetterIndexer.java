@@ -7,7 +7,7 @@ public class LetterIndexer extends CharIndexer {
 	}
 
 	@Override
-	boolean isIndexedPosition(CharSequence text, int pos) {
+	public boolean isIndexedPosition(CharSequence text, int pos) {
 		return Character.isLetter(text.charAt(pos));
 	}
 

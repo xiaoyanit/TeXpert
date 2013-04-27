@@ -3,7 +3,7 @@ TeXpert
 
 LaTeX document preparation app for Android
 
-This app aims to be a TeX document development environment application like 
+This app aims to be a TeX document development environment application like
 TeXMaker or TeXworks on PC.
 
 Features
@@ -15,16 +15,33 @@ The target of TeXpert is for _tablets_ like Nexus 7:
  * reasonably big screen for document editing
  * modern Android (4.2+)
  
-Phone is not supported. I expect the following key features:
+Phone is not supported. I comtemplate the following key features:
 
-1. efficient input: _complementing_, *not replacing*, useful existing tools like [SwiftKey][1];
-1. smart correction suggestion;
+1. efficient input: _complementing_, *not replacing*, useful existing tools
+   like [SwiftKey][1]
+ * shortcut to insert commonly used TeX characters such as `{`, `}`
+ * shortcut to insert user-defined commands via `\newcommand` (assuming that
+   if the user defines a command, he/she wants to use it frequently in the
+   document)
+ * shortcut to insert macros that are not combinations of English words
+ * labels
+1. smart correction suggestion
+ * `Begin align` --> `\begin{align}`
 1. button to compile with [TeXPortal][4]; and
 1. basic syntax highlighting: *NO* consideration for 
- * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5]);
- * `verbatim` environment;
- * complicated context-free grammar styling (e.g. math formulas in `$$ ... $$`).
- 
+ * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
+ * `verbatim` environment
+ * complicated context-free grammar styling (e.g. math formulas in `$$ ... $$`)
+   (TeX as a programming language is Turing-complete, having **NO** fix grammar
+   in the first place due to macro expansion);
+1. document reorganization (inspired by Eclipse's refactoring features) such as
+ * move `\newcommand` to preamble
+ * rename defined command (in a context-sensitive way)
+ * format the source code (e.g. separate displayed math, `\begin`, `\end`,
+   `\item`, line comments to new line)
+ * convert `$$ ... $$` to the recommended `\[ ... \]`
+ * textually align the array-kind environment
+
 These features are ordered based on perceived importance.
 
 Unlike their PC counterparts where one can easily type in the content.

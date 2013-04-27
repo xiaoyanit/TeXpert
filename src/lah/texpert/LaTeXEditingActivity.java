@@ -1,8 +1,9 @@
 package lah.texpert;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 
-import lah.spectre.stream.Streams;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.Activity;
@@ -15,10 +16,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.text.Editable;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -27,6 +30,7 @@ import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.OnChildClickListener;
 import android.widget.ExpandableListView.OnGroupExpandListener;
 import android.widget.Toast;
+import android.widget.ViewSwitcher;
 
 /**
  * Main activity to edit the LaTeX source code
@@ -36,9 +40,61 @@ import android.widget.Toast;
  */
 public class LaTeXEditingActivity extends Activity {
 
-	private static final String TEST_FILE = "lambda.tex"; // "testlatex.tex";
+	class OpenDocumentTask extends AsyncTask<File, Void, String> {
 
-	private static final boolean TESTING = false;
+		private static final String TAG = "open_document_task";
+
+		@Override
+		protected String doInBackground(File... params) {
+			File file = params[0];
+			FileInputStream inpstr = null;
+			try {
+				// Reading file
+				inpstr = new FileInputStream(file);
+				int file_length = (int) file.length();
+				byte[] buffer = new byte[file_length];
+				long t = System.currentTimeMillis();
+				inpstr.read(buffer, 0, file_length);
+				String result = new String(buffer, 0, file_length);
+				if (DEBUG)
+					Log.v(TAG, "Reading takes " + (System.currentTimeMillis() - t) + "ms");
+
+				// Indexing for syntax highlight
+				t = System.currentTimeMillis();
+				current_document = new LaTeXStringBuilder(result);
+				if (DEBUG)
+					Log.v(TAG, "Indexing takes " + (System.currentTimeMillis() - t) + "ms");
+
+				current_file = file;
+				inpstr.close();
+				return result;
+			} catch (Exception e) {
+				runOnUiThread(notify_open_document_error);
+			}
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(String result) {
+			long t = System.currentTimeMillis();
+			if (result != null) {
+				document_textview.setText(current_document);
+				if (DEBUG)
+					Log.v(TAG, "setText takes " + (System.currentTimeMillis() - t) + "ms");
+			}
+			t = System.currentTimeMillis();
+			reading_state_switcher.showPrevious();
+			if (DEBUG)
+				Log.v(TAG, "showPrevious takes " + (System.currentTimeMillis() - t) + "ms");
+		}
+	}
+
+	private static final boolean DEBUG = false;
+
+	static final String PREF_LAST_OPEN_FILE = "last_open_file";
+
+	// "testlatex.tex"; // "lambda.tex";
+	private static final String TEST_FILE = "texbook.tex";
 
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -51,9 +107,22 @@ public class LaTeXEditingActivity extends Activity {
 
 	private FileDialog file_select_dialog;
 
+	private final Runnable notify_open_document_error = new Runnable() {
+
+		@Override
+		public void run() {
+			Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_open_document),
+					Toast.LENGTH_SHORT).show();
+		}
+	};
+
+	private OpenDocumentTask open_document_task;
+
+	private AlertDialog overwrite_confirm_dialog;
+
 	private SharedPreferences pref;
 
-	private AlertDialog save_confirm_dialog;
+	private ViewSwitcher reading_state_switcher;
 
 	private final OnClickListener save_doc_on_click = new OnClickListener() {
 
@@ -66,11 +135,12 @@ public class LaTeXEditingActivity extends Activity {
 	private void confirmOverwrite() {
 		if (current_document == null)
 			return;
-		if (save_confirm_dialog == null)
-			save_confirm_dialog = new AlertDialog.Builder(this).setTitle(getString(R.string.title_confirm_overwrite))
+		if (overwrite_confirm_dialog == null)
+			overwrite_confirm_dialog = new AlertDialog.Builder(this)
+					.setTitle(getString(R.string.title_confirm_overwrite))
 					.setPositiveButton(getString(R.string.action_save), save_doc_on_click)
 					.setNegativeButton(getString(R.string.action_cancel), null).create();
-		save_confirm_dialog.show();
+		overwrite_confirm_dialog.show();
 	}
 
 	@Override
@@ -78,13 +148,17 @@ public class LaTeXEditingActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
 
+		// Prepare switcher
+		reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
+
 		// Prepare document editing area
+		current_document = new LaTeXStringBuilder("");
 		document_textview = (EditText) findViewById(R.id.document_area);
 		document_textview.setEditableFactory(new Editable.Factory() {
 
 			@Override
 			public Editable newEditable(CharSequence source) {
-				return new LaTeXStringBuilder(source);
+				return current_document;
 			}
 		});
 
@@ -113,7 +187,7 @@ public class LaTeXEditingActivity extends Activity {
 		});
 
 		// Handling user intent
-		if (TESTING) {
+		if (DEBUG) {
 			openDocument(new File(Environment.getExternalStorageDirectory(), TEST_FILE));
 		} else {
 			Intent intent = getIntent();
@@ -149,7 +223,7 @@ public class LaTeXEditingActivity extends Activity {
 					public void onFileSelected(File result) {
 						openDocument(result);
 					}
-				}, "");
+				}, pref.getString(PREF_LAST_OPEN_FILE, ""));
 			file_select_dialog.show();
 			return true;
 		case R.id.action_save:
@@ -188,6 +262,15 @@ public class LaTeXEditingActivity extends Activity {
 	}
 
 	@Override
+	public void onPause() {
+		super.onPause();
+		if (open_document_task != null)
+			open_document_task.cancel(true);
+		if (current_file != null)
+			pref.edit().putString(PREF_LAST_OPEN_FILE, current_file.getAbsolutePath()).commit();
+	}
+
+	@Override
 	protected void onResume() {
 		super.onResume();
 		if (document_textview == null)
@@ -214,22 +297,23 @@ public class LaTeXEditingActivity extends Activity {
 	private void openDocument(File file) {
 		if (file == null || !file.exists())
 			return;
-		try {
-			current_file = file;
-			String file_content = Streams.readTextFile(file);
-			document_textview.setText(file_content);
-			current_document = (LaTeXStringBuilder) document_textview.getText();
-		} catch (Exception e) {
-			Toast.makeText(this, getString(R.string.message_cannot_open_document), Toast.LENGTH_SHORT).show();
-		}
+		Toast.makeText(LaTeXEditingActivity.this, "Opening " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+		// Switch to temporary view
+		reading_state_switcher.showNext();
+		// Read and style the file in background thread
+		(open_document_task = new OpenDocumentTask()).execute(file);
 	}
 
 	private void saveDocumentAs(File file) {
 		try {
-			if (current_document != null && file != null)
-				Streams.writeStringToFile(current_document.toString(), file, false);
+			if (current_document != null && file != null) {
+				FileWriter writer = new FileWriter(file, false);
+				writer.write(current_document.toString());
+				writer.close();
+			}
 		} catch (Exception e) {
 			Toast.makeText(this, getString(R.string.message_cannot_save_document), Toast.LENGTH_SHORT).show();
 		}
 	}
+
 }

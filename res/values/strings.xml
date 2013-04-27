@@ -6,6 +6,8 @@
     <string name="title_activity_settings">Settings</string>
 
     <!-- Actions, menu labels -->
+    <string name="action_file">File</string>
+    <string name="action_new">New</string>
     <string name="action_open">Open</string>
     <string name="action_save">Save</string>
     <string name="action_send">Compile with TeXPortal</string>
@@ -15,8 +17,11 @@
 
     <!-- Error messages -->
     <string name="message_cannot_send_texportal">Cannot send document for compilation: TeXPortal is not installed!</string>
-    <string name="message_cannot_save_document"> Cannot save document!</string>
-    <string name="message_cannot_open_document"> Cannot open document!</string>
+    <string name="message_cannot_save_document">Cannot save document!</string>
+    <string name="message_cannot_open_document">Cannot open document!</string>
+
+    <!-- Information messages -->
+    <string name="reading_in_progress">Reading in progress &#8230;</string>
 
     <!-- Settings -->
     <string name="pref_header_editor">Editing</string>

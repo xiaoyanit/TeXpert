@@ -13,19 +13,33 @@
         android:layout_width="120dp"
         android:layout_height="match_parent" />
 
-    <!-- Document editing area -->
-
-    <EditText
-        android:id="@+id/document_area"
+    <ViewSwitcher
+        android:id="@+id/reading_state_switcher"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/textarea_background"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:gravity="top"
-        android:hint=""
-        android:inputType="textMultiLine|textNoSuggestions"
-        android:saveEnabled="false"
-        android:scrollbars="vertical" />
+        android:layout_height="match_parent" >
+
+        <!-- Document editing area -->
+
+        <EditText
+            android:id="@+id/document_area"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/textarea_background"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="top"
+            android:hint=""
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:saveEnabled="false"
+            android:scrollbars="vertical" />
+
+        <!-- Progress bar to be display while reading the source file -->
+
+        <ProgressBar
+            style="?android:attr/progressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+    </ViewSwitcher>
 
 </LinearLayout>
