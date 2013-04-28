@@ -25,11 +25,17 @@
                 android:showAsAction="ifRoom"
                 android:title="@string/action_save"/>
             <item
-                android:id="@+id/action_compile"
+                android:id="@+id/action_compile_pdflatex"
                 android:icon="@drawable/ic_action_compile"
                 android:orderInCategory="100"
                 android:showAsAction="ifRoom"
-                android:title="@string/action_compile"/>
+                android:title="@string/action_compile_pdflatex"/>
+            <item
+                android:id="@+id/action_compile_bibtex"
+                android:icon="@drawable/ic_action_compile"
+                android:orderInCategory="100"
+                android:showAsAction="ifRoom"
+                android:title="@string/action_compile_bibtex"/>
         </menu>
     </item>
     <item
@@ -44,6 +50,12 @@
                 android:orderInCategory="100"
                 android:showAsAction="ifRoom"
                 android:title="@string/action_search"/>
+            <item
+                android:id="@+id/action_format"
+                android:icon="@drawable/ic_action_format"
+                android:orderInCategory="100"
+                android:showAsAction="ifRoom"
+                android:title="@string/action_format"/>
         </menu>
     </item>
     <item

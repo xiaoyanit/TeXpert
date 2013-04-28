@@ -17,7 +17,7 @@ The target of TeXpert is for _tablets_ like Nexus 7:
  
 Phone is not supported. I comtemplate the following key features:
 
-1. efficient input: _complementing_, *not replacing*, useful existing tools
+1. Efficient input: _complementing_, *not replacing*, useful existing tools
    like [SwiftKey][1]
  * shortcut to insert commonly used TeX characters such as `{`, `}`
  * shortcut to insert user-defined commands via `\newcommand` (assuming that
@@ -25,19 +25,18 @@ Phone is not supported. I comtemplate the following key features:
    document)
  * shortcut to insert macros that are not combinations of English words
  * labels
-1. smart correction suggestion
+1. Smart correction suggestion
  * `Begin align` --> `\begin{align}`
  * `right arrow` --> `\rightarrow`
-1. button to compile with [TeXPortal][4]
- * 3 engines only: `pdflatex`, `bibtex`, `makeindex`
+1. Button to compile with [TeXPortal][4]
  * load and annotate generated log
-1. basic syntax highlighting: *NO* consideration for 
+1. Basic syntax highlighting: *NO* consideration for 
  * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
  * `verbatim` environment
  * complicated context-free grammar styling (e.g. math formulas in `$$ ... $$`)
    (TeX as a programming language is Turing-complete, having **NO** fix grammar
-   in the first place due to macro expansion);
-1. document reorganization (inspired by Eclipse's refactoring features) such as
+   in the first place due to macro expansion)
+1. Document reorganization (inspired by Eclipse's refactoring features) such as
  * move `\newcommand` to preamble
  * rename defined command (in a context-sensitive way)
  * format the source code (e.g. separate displayed math, `\begin`, `\end`,

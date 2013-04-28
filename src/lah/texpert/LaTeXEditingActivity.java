@@ -57,7 +57,8 @@ public class LaTeXEditingActivity extends Activity {
 
 				// Indexing for syntax highlight
 				t = System.currentTimeMillis();
-				current_document = new LaTeXStringBuilder(result);
+				current_document = new LaTeXStringBuilder(LaTeXEditingActivity.this, result);
+				document_is_modified = false;
 				if (DEBUG)
 					Log.v(TAG, "Indexing takes " + (System.currentTimeMillis() - t) + "ms");
 
@@ -87,7 +88,8 @@ public class LaTeXEditingActivity extends Activity {
 
 	private static final boolean DEBUG = false;
 
-	static final String PREF_LAST_OPEN_FILE = "last_open_file";
+	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
+			PREF_LAST_OPEN_FILE = "last_open_file";
 
 	// "testlatex.tex"; // "lambda.tex";
 	private static final String TEST_FILE = "texbook.tex";
@@ -95,12 +97,29 @@ public class LaTeXEditingActivity extends Activity {
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
-	private final Runnable compile_document = new Runnable() {
+	protected static final String TEXPORTAL_ARGUMENT_ENGINE = "lah.texportal.argument.ENGINE";
+
+	private final Runnable compile_document_bibtex = new Runnable() {
 
 		@Override
 		public void run() {
 			try {
-				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file)), 0);
+				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file))
+						.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "bibtex"), 0);
+			} catch (ActivityNotFoundException e) {
+				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
+						Toast.LENGTH_SHORT).show();
+			}
+		}
+	};
+
+	private final Runnable compile_document_pdflatex = new Runnable() {
+
+		@Override
+		public void run() {
+			try {
+				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file))
+						.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "pdflatex"), 0);
 			} catch (ActivityNotFoundException e) {
 				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
 						Toast.LENGTH_SHORT).show();
@@ -111,6 +130,8 @@ public class LaTeXEditingActivity extends Activity {
 	private LaTeXStringBuilder current_document;
 
 	private File current_file;
+
+	private boolean document_is_modified;
 
 	private EditText document_textview;
 
@@ -133,6 +154,22 @@ public class LaTeXEditingActivity extends Activity {
 
 	private ViewSwitcher reading_state_switcher;
 
+	private void compile(boolean is_bibtex) {
+		Runnable compile_document = is_bibtex ? this.compile_document_bibtex : this.compile_document_pdflatex;
+		if (current_file == null) {
+			showSaveFileAs(compile_document);
+			return;
+		}
+		if (document_is_modified) {
+			if (pref.getBoolean(PREF_AUTOSAVE_BEFORE_COMPILE, false))
+				saveDocumentAs(current_file, compile_document);
+			else
+				confirmOverwrite(compile_document);
+		} else {
+			compile_document.run();
+		}
+	}
+
 	private void confirmOverwrite(final Runnable action_after_overwrite) {
 		if (current_document == null)
 			return;
@@ -149,6 +186,10 @@ public class LaTeXEditingActivity extends Activity {
 		overwrite_confirm_dialog.show();
 	}
 
+	public void notifyDocumentModified() {
+		document_is_modified = true;
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -158,7 +199,7 @@ public class LaTeXEditingActivity extends Activity {
 		reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
 
 		// Prepare document editing area
-		current_document = new LaTeXStringBuilder("");
+		current_document = new LaTeXStringBuilder(this, "");
 		document_textview = (EditText) findViewById(R.id.document_area);
 		document_textview.setEditableFactory(new Editable.Factory() {
 
@@ -225,7 +266,7 @@ public class LaTeXEditingActivity extends Activity {
 		switch (item.getItemId()) {
 		case R.id.action_new:
 			current_file = null;
-			current_document = new LaTeXStringBuilder("");
+			current_document = new LaTeXStringBuilder(this, "");
 			document_textview.setText(current_document);
 			return true;
 		case R.id.action_open:
@@ -247,12 +288,11 @@ public class LaTeXEditingActivity extends Activity {
 				confirmOverwrite(null);
 			}
 			return true;
-		case R.id.action_compile:
-			if (current_file == null) {
-				showSaveFileAs(compile_document);
-				return true;
-			}
-			confirmOverwrite(compile_document);
+		case R.id.action_compile_pdflatex:
+			compile(false);
+			return true;
+		case R.id.action_compile_bibtex:
+			compile(true);
 			return true;
 		case R.id.action_settings:
 			startActivity(new Intent(this, SettingsActivity.class));
@@ -314,6 +354,7 @@ public class LaTeXEditingActivity extends Activity {
 				writer.write(current_document.toString());
 				writer.close();
 				current_file = file;
+				document_is_modified = false;
 				if (action_after_saved != null)
 					action_after_saved.run();
 			}

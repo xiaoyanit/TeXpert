@@ -16,13 +16,16 @@ import android.text.style.CharacterStyle;
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
+	private LaTeXEditingActivity host_activity;
+
 	private static CharIndexer[] indexers;
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
 
-	public LaTeXStringBuilder(CharSequence text) {
+	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text) {
 		super(text);
-
+		this.host_activity = activity;
+		
 		// Initialize the indexers
 		if (indexers == null)
 			indexers = new CharIndexer[3];
@@ -175,6 +178,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		for (int i = 0; i < indexers.length; i++)
 			indexers[i].replace(this, start, end, tb, tbstart, tbend);
 		super.replace(start, end, tb, tbstart, tbend);
+		if (host_activity != null)
+			host_activity.notifyDocumentModified();
 		return this;
 	}
 

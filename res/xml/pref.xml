@@ -15,5 +15,11 @@
             android:key="font_family"
             android:title="@string/pref_title_font_family" />
     </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_header_compilation" >
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="autosave_before_compile"
+            android:title="@string/pref_title_autosave_before_compile" />
+    </PreferenceCategory>
 
 </PreferenceScreen>

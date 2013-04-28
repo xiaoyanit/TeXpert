@@ -10,9 +10,11 @@
     <string name="action_new">New</string>
     <string name="action_open">Open</string>
     <string name="action_save">Save</string>
-    <string name="action_compile">Compile</string>
+    <string name="action_compile_pdflatex">pdfLaTeX</string>
+    <string name="action_compile_bibtex">BibTeX</string>
     <string name="action_edit">Edit</string>
     <string name="action_search">Search</string>
+    <string name="action_format">Format</string>
     <string name="action_settings">Settings</string>
     <string name="action_quit">Quit</string>
     <string name="action_cancel">Cancel</string>
@@ -27,7 +29,10 @@
 
     <!-- Settings -->
     <string name="pref_header_editor">Editing</string>
+    <string name="pref_header_compilation">Compilation</string>
     <string name="pref_title_font_size">Font size</string>
+    <string name="pref_title_font_family">Font family</string>
+    <string name="pref_title_autosave_before_compile">Autosave before compile</string>
 
     <string-array name="font_sizes">
         <item>18</item>
@@ -39,9 +44,6 @@
         <item>36</item>
         <item>40</item>
     </string-array>
-
-    <string name="pref_title_font_family">Font family</string>
-
     <string-array name="font_families">
         <item>Sans Serif</item>
         <item>Monospace</item>
