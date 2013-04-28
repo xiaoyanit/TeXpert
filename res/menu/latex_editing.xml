@@ -25,11 +25,25 @@
                 android:showAsAction="ifRoom"
                 android:title="@string/action_save"/>
             <item
-                android:id="@+id/action_send"
-                android:icon="@drawable/ic_action_send"
+                android:id="@+id/action_compile"
+                android:icon="@drawable/ic_action_compile"
                 android:orderInCategory="100"
                 android:showAsAction="ifRoom"
-                android:title="@string/action_send"/>
+                android:title="@string/action_compile"/>
+        </menu>
+    </item>
+    <item
+        android:icon="@drawable/ic_action_edit"
+        android:orderInCategory="100"
+        android:showAsAction="ifRoom"
+        android:title="@string/action_edit">
+        <menu>
+            <item
+                android:id="@+id/action_search"
+                android:icon="@drawable/ic_action_search"
+                android:orderInCategory="100"
+                android:showAsAction="ifRoom"
+                android:title="@string/action_search"/>
         </menu>
     </item>
     <item

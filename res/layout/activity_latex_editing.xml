@@ -8,10 +8,11 @@
 
     <!-- Quick insertion -->
 
-    <ExpandableListView
-        android:id="@+id/quick_insertion_items_listview"
-        android:layout_width="120dp"
-        android:layout_height="match_parent" />
+
+    <!-- <ExpandableListView -->
+    <!-- android:id="@+id/quick_insertion_items_listview" -->
+    <!-- android:layout_width="120dp" -->
+    <!-- android:layout_height="match_parent" /> -->
 
     <ViewSwitcher
         android:id="@+id/reading_state_switcher"

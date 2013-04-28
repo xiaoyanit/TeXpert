@@ -27,7 +27,10 @@ Phone is not supported. I comtemplate the following key features:
  * labels
 1. smart correction suggestion
  * `Begin align` --> `\begin{align}`
-1. button to compile with [TeXPortal][4]; and
+ * `right arrow` --> `\rightarrow`
+1. button to compile with [TeXPortal][4]
+ * 3 engines only: `pdflatex`, `bibtex`, `makeindex`
+ * load and annotate generated log
 1. basic syntax highlighting: *NO* consideration for 
  * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
  * `verbatim` environment

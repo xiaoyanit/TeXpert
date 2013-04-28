@@ -24,11 +24,7 @@ import android.text.Editable;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.EditText;
-import android.widget.ExpandableListView;
-import android.widget.ExpandableListView.OnChildClickListener;
-import android.widget.ExpandableListView.OnGroupExpandListener;
 import android.widget.Toast;
 import android.widget.ViewSwitcher;
 
@@ -99,6 +95,19 @@ public class LaTeXEditingActivity extends Activity {
 	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
+	private final Runnable compile_document = new Runnable() {
+
+		@Override
+		public void run() {
+			try {
+				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file)), 0);
+			} catch (ActivityNotFoundException e) {
+				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
+						Toast.LENGTH_SHORT).show();
+			}
+		}
+	};
+
 	private LaTeXStringBuilder current_document;
 
 	private File current_file;
@@ -124,22 +133,19 @@ public class LaTeXEditingActivity extends Activity {
 
 	private ViewSwitcher reading_state_switcher;
 
-	private final OnClickListener save_doc_on_click = new OnClickListener() {
-
-		@Override
-		public void onClick(DialogInterface dialog, int which) {
-			saveDocumentAs(current_file);
-		}
-	};
-
-	private void confirmOverwrite() {
+	private void confirmOverwrite(final Runnable action_after_overwrite) {
 		if (current_document == null)
 			return;
 		if (overwrite_confirm_dialog == null)
 			overwrite_confirm_dialog = new AlertDialog.Builder(this)
 					.setTitle(getString(R.string.title_confirm_overwrite))
-					.setPositiveButton(getString(R.string.action_save), save_doc_on_click)
-					.setNegativeButton(getString(R.string.action_cancel), null).create();
+					.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
+
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							saveDocumentAs(current_file, action_after_overwrite);
+						}
+					}).setNegativeButton(getString(R.string.action_cancel), null).create();
 		overwrite_confirm_dialog.show();
 	}
 
@@ -163,28 +169,30 @@ public class LaTeXEditingActivity extends Activity {
 		});
 
 		// Prepare quick insertion area
-		final ExpandableListView insertion_listview = (ExpandableListView) findViewById(R.id.quick_insertion_items_listview);
-		final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
-		insertion_listview.setAdapter(adapter);
-		insertion_listview.setOnChildClickListener(new OnChildClickListener() {
-
-			@Override
-			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-				if (current_document != null) {
-					current_document.replaceSelection(adapter.getChild(groupPosition, childPosition));
-				}
-				return true;
-			}
-		});
-		insertion_listview.setOnGroupExpandListener(new OnGroupExpandListener() {
-
-			@Override
-			public void onGroupExpand(int groupPosition) {
-				if (adapter.current_expanding_group > 0 && adapter.current_expanding_group != groupPosition)
-					insertion_listview.collapseGroup(adapter.current_expanding_group);
-				adapter.current_expanding_group = groupPosition;
-			}
-		});
+		// final ExpandableListView insertion_listview = (ExpandableListView)
+		// findViewById(R.id.quick_insertion_items_listview);
+		// final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
+		// insertion_listview.setAdapter(adapter);
+		// insertion_listview.setOnChildClickListener(new OnChildClickListener() {
+		//
+		// @Override
+		// public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id)
+		// {
+		// if (current_document != null) {
+		// current_document.replaceSelection(adapter.getChild(groupPosition, childPosition));
+		// }
+		// return true;
+		// }
+		// });
+		// insertion_listview.setOnGroupExpandListener(new OnGroupExpandListener() {
+		//
+		// @Override
+		// public void onGroupExpand(int groupPosition) {
+		// if (adapter.current_expanding_group > 0 && adapter.current_expanding_group != groupPosition)
+		// insertion_listview.collapseGroup(adapter.current_expanding_group);
+		// adapter.current_expanding_group = groupPosition;
+		// }
+		// });
 
 		// Handling user intent
 		if (DEBUG) {
@@ -215,6 +223,11 @@ public class LaTeXEditingActivity extends Activity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
+		case R.id.action_new:
+			current_file = null;
+			current_document = new LaTeXStringBuilder("");
+			document_textview.setText(current_document);
+			return true;
 		case R.id.action_open:
 			if (file_select_dialog == null)
 				file_select_dialog = new FileDialog(this, new IFileSelectListener() {
@@ -229,27 +242,17 @@ public class LaTeXEditingActivity extends Activity {
 		case R.id.action_save:
 			if (current_file == null) {
 				// Ask user to select a file to save as
-				final EditText file_path_field = new EditText(this);
-				new AlertDialog.Builder(this).setTitle(getString(R.string.title_save_as))
-						.setMessage("Please type the path to save file as").setView(file_path_field)
-						.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
-
-							@Override
-							public void onClick(DialogInterface arg0, int arg1) {
-								saveDocumentAs(new File(file_path_field.getText().toString()));
-							}
-						}).setNegativeButton(getString(R.string.action_cancel), null).show();
+				showSaveFileAs(null);
 			} else {
-				confirmOverwrite();
+				confirmOverwrite(null);
 			}
 			return true;
-		case R.id.action_send:
-			confirmOverwrite();
-			try {
-				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file)), 0);
-			} catch (ActivityNotFoundException e) {
-				Toast.makeText(this, getString(R.string.message_cannot_send_texportal), Toast.LENGTH_SHORT).show();
+		case R.id.action_compile:
+			if (current_file == null) {
+				showSaveFileAs(compile_document);
+				return true;
 			}
+			confirmOverwrite(compile_document);
 			return true;
 		case R.id.action_settings:
 			startActivity(new Intent(this, SettingsActivity.class));
@@ -304,16 +307,34 @@ public class LaTeXEditingActivity extends Activity {
 		(open_document_task = new OpenDocumentTask()).execute(file);
 	}
 
-	private void saveDocumentAs(File file) {
+	private void saveDocumentAs(File file, Runnable action_after_saved) {
 		try {
 			if (current_document != null && file != null) {
 				FileWriter writer = new FileWriter(file, false);
 				writer.write(current_document.toString());
 				writer.close();
+				current_file = file;
+				if (action_after_saved != null)
+					action_after_saved.run();
 			}
 		} catch (Exception e) {
 			Toast.makeText(this, getString(R.string.message_cannot_save_document), Toast.LENGTH_SHORT).show();
+			e.printStackTrace(System.out);
 		}
+	}
+
+	public void showSaveFileAs(final Runnable action_after_save) {
+		// Ask user to select a file to save as
+		final EditText file_path_field = new EditText(this);
+		new AlertDialog.Builder(this).setTitle(getString(R.string.title_save_as))
+				.setMessage("Please type the path to save file as").setView(file_path_field)
+				.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
+
+					@Override
+					public void onClick(DialogInterface arg0, int arg1) {
+						saveDocumentAs(new File(file_path_field.getText().toString()), action_after_save);
+					}
+				}).setNegativeButton(getString(R.string.action_cancel), null).show();
 	}
 
 }

@@ -32,6 +32,23 @@ public abstract class CharIndexer {
 		initialize(null);
 	}
 
+	private void appendFirstSegment(int position) {
+		if (first_segment_end == second_segment_start) {
+			// No more space ==> double the marker array
+			int[] temp_markers = new int[markers.length << 1];
+			System.arraycopy(markers, 0, temp_markers, 0, first_segment_end);
+			int second_segment_length = markers.length - second_segment_start;
+			int new_second_segment_start = temp_markers.length - second_segment_length;
+			System.arraycopy(markers, second_segment_start, temp_markers, new_second_segment_start,
+					second_segment_length);
+			second_segment_start = new_second_segment_start;
+			markers = temp_markers;
+		}
+		// Now we should have empty space to expand first segment
+		markers[first_segment_end] = position;
+		first_segment_end++;
+	}
+
 	/**
 	 * Find the index of first occurrence of {@link CharIndexer#idx} after a specified position
 	 * 
@@ -72,28 +89,39 @@ public abstract class CharIndexer {
 		}
 	}
 
+	String getStateString() {
+		StringBuilder result = new StringBuilder("Index[0.." + first_segment_end + ") U [" + second_segment_start
+				+ ".." + markers.length + "] = [");
+		for (int i = 0; i < first_segment_end; i++)
+			result.append(markers[i] + ", ");
+		result.append("] U [");
+		for (int i = second_segment_start; i < markers.length; i++)
+			result.append((markers[i] + second_segment_delta) + ", ");
+		return result.append("]").toString();
+	}
+
 	/**
 	 * Initialize this indexer to index a piece of text
 	 * 
 	 * @param text
 	 */
 	public final void initialize(CharSequence text) {
-		// pre-allocated, this takes 1MB
-		if (markers == null)
-			markers = new int[1 << 18];
+		// Allocate the memory if necessary
+		if (markers == null || markers.length > (1 << 18))
+			markers = new int[1 << 10];
 
-		// both segments initially empty
+		// Make both segments empty initially
 		first_segment_end = 0;
 		second_segment_start = markers.length;
 		second_segment_delta = 0;
 
-		// populate the index for input text
+		// Populate the index for input text
 		if (text == null)
 			return;
 		try {
 			for (int i = 0; i < text.length(); i++) {
 				if (isIndexedPosition(text, i)) {
-					markers[first_segment_end++] = i;
+					appendFirstSegment(i);
 				}
 			}
 			// after this, markers[0..first_segment_end) indexed occurrences' positions
@@ -161,9 +189,7 @@ public abstract class CharIndexer {
 		// we just need to add `correct` indices starting from first_segment_end = ps
 		for (int i = tbstart; i < tbend; i++) {
 			if (isIndexedPosition(tb, i)) {
-				// FIX BUG: Adjust first_segment_end after assignment!
-				markers[first_segment_end] = i - tbstart + start;
-				first_segment_end++;
+				appendFirstSegment(i - tbstart + start);
 			}
 		}
 		// Log.v(this.toString(), "STATE AFTER REPLACE" + getStateString());
@@ -176,17 +202,6 @@ public abstract class CharIndexer {
 	 */
 	public int size() {
 		return markers.length - second_segment_start + first_segment_end;
-	}
-
-	String getStateString() {
-		StringBuilder result = new StringBuilder("Index[0.." + first_segment_end + ") U [" + second_segment_start
-				+ ".." + markers.length + "] = [");
-		for (int i = 0; i < first_segment_end; i++)
-			result.append(markers[i] + ", ");
-		result.append("] U [");
-		for (int i = second_segment_start; i < markers.length; i++)
-			result.append((markers[i] + second_segment_delta) + ", ");
-		return result.append("]").toString();
 	}
 
 }

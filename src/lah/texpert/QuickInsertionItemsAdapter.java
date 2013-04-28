@@ -15,28 +15,22 @@ import android.widget.TextView;
  */
 public class QuickInsertionItemsAdapter extends BaseExpandableListAdapter {
 
-	private static final String[] categories = { "Special", "Escaped", "Text", "Math", "Greek1", "Greek2" };
+	private static final String[] categories = { "Special", "Escaped", "Text", "Math" };
 
 	private static final String[][] insertion_items = {
 			// Special characters
-			{ "\\", "$", "%", "&", "#", "_", "~", "^", "{", "}", "(", ")", "[", "]" },
+			{ "\\", "$", "%", "&", "#", "_", "~", "^", "{}", "()", "[]" },
 			// Escaped special characters
-			{ "\\\\", "\\$", "\\%", "\\&", "\\#", "\\_", "\\~", "\\^", "\\{", "\\}", "\\[", "\\]", "\\(", "\\)" },
+			{ "\\textbackslash{}", "\\$", "\\%", "\\&", "\\#", "\\_", "\textasciitilde{}", "\\textasciicircum{}",
+					"\\{\\}", "\\[\\]", "\\(\\)" },
 			// Common text mode commands
-			{ "\\emph", "\\begin{}\n\\end{}", "\\section{}", "\\subsection{}", "\\subsubsection{}",
-					"\\subsubsubsection{}", "\\paragraph{}", "\\subparagraph{}", "\\part{}", "\\chapter{}",
-					"\\usepackage{}", "\\documentclass{}", "\\author{}", "\\title{}" },
+			{ "\\begin{}\n\\end{}", "\\textsubscript{}", "\\textsuperscript{}", "\\emph", "\\section{}", "\\subsection{}",
+					"\\subsubsection{}", "\\subsubsubsection{}", "\\paragraph{}", "\\subparagraph{}", "\\part{}",
+					"\\chapter{}", "\\documentclass{}", "\\author{}", "\\title{}", "\\input{}",
+					"\\includegraphics[]{}", "\\include{}", "\\usepackage{}" },
 			// Common math mode commands
-			{ "\\frac{}{}", "\\dfrac{}{}", "\\sqrt{}", "\\sqrt[]{}", "\\rightarrow", "\\leftarrow", "\\mapsto" },
-			// Capitalized Greek letters
-			{ "\\Alpha", "\\Beta", "\\Gamma", "\\Delta", "\\Epsilon", "\\Zeta", "\\Eta", "\\Theta", "\\Iota",
-					"\\Kappa", "\\Lambda", "\\Mu", "\\Nu", "\\Xi", "\\Omicron", "\\Pi", "\\Rho", "\\Sigma", "\\Tau",
-					"\\Upsilon", "\\Phi", "\\Chi", "\\Psi", "\\Omega" },
-			// Lower case Greek letters
-			{ "\\alpha", "\\beta", "\\gamma", "\\delta", "\\epsilon", "\\varepsilon", "\\zeta", "\\eta", "\\theta",
-					"\\vartheta", "\\iota", "\\kappa", "\\varkappa", "\\lambda", "\\mu", "\\nu", "\\xi", "\\omicron",
-					"\\pi", "\\varpi", "\\rho", "\\varrho", "\\sigma", "\\varsigma", "\\tau", "\\upsilon", "\\phi",
-					"\\varphi", "\\chi", "\\psi", "\\omega" } };
+			{ "\\frac{}{}", "\\dfrac{}{}", "\\sqrt{}", "\\sqrt[]{}", "\\rightarrow", "\\leftarrow", "\\mapsto",
+					"\\varepsilon", "\\vartheta", "\\varkappa", "\\varpi", "\\varrho", "\\varsigma", "\\varphi" } };
 
 	int current_expanding_group = -1;
 

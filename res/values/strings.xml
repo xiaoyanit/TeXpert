@@ -10,7 +10,9 @@
     <string name="action_new">New</string>
     <string name="action_open">Open</string>
     <string name="action_save">Save</string>
-    <string name="action_send">Compile with TeXPortal</string>
+    <string name="action_compile">Compile</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_search">Search</string>
     <string name="action_settings">Settings</string>
     <string name="action_quit">Quit</string>
     <string name="action_cancel">Cancel</string>

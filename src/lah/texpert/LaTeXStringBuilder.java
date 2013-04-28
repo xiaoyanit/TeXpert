@@ -8,20 +8,21 @@ import android.text.SpannableStringBuilder;
 import android.text.style.CharacterStyle;
 
 /**
- * This extension of {@link SpannableStringBuilder} is to provide better performance editing LaTeX content.
+ * This extension of {@link SpannableStringBuilder} is to provide better syntax highlighting performance editing LaTeX
+ * content.
  * 
  * @author L.A.H.
  * 
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
-	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
-
 	private static CharIndexer[] indexers;
+
+	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
 
 	public LaTeXStringBuilder(CharSequence text) {
 		super(text);
-		
+
 		// Initialize the indexers
 		if (indexers == null)
 			indexers = new CharIndexer[3];
@@ -35,7 +36,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
 					break;
 				case SPECIAL:
-					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '^', '~', '%');
+					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '_', '^', '~', '%',
+							'*', '(', ')', '[', ']');
 					break;
 				}
 			} else {
@@ -102,17 +104,12 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				// FIX BUG: This might be wrong if we determine if this % is escaped simply by looking if the previous
 				// character is a backslash! For illustration, % in " \\\\%" is also a non-escaped %!
 				// TODO Fix the same mistake for escaped command or other special symbol case
-				int pos = pcpos - 1;
-				int num_backslash_bef = 0;
-				while (pos >= start) {
-					if (charAt(pos) == '\\') {
-						num_backslash_bef++;
-						pos--;
-					} else
-						break;
-				}
-				// An even number of backslash (0, 2, 4, etc.) before this % indicates that this is not an escaped one.
-				if ((num_backslash_bef & 1) == 0)
+				/*
+				 * int pos = pcpos - 1; int num_backslash_bef = 0; while (pos >= start) { if (charAt(pos) == '\\') {
+				 * num_backslash_bef++; pos--; } else break; } // An even number of backslash (0, 2, 4, etc.) before
+				 * this % indicates that this is not an escaped one. if ((num_backslash_bef & 1) == 0) break;
+				 */
+				if (isNonEscaped(pcpos))
 					break;
 			}
 			int comment_start = end;
@@ -128,12 +125,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int bsend = indexers[SPECIAL].findFirst(comment_start);
 
 			// Now we are ready to produce the result
+			// TODO Cache result for efficiency
 			TeXTokenSpan[] result = new TeXTokenSpan[bsend - bsstart + has_comment];
 			if (has_comment > 0)
 				result[0] = new TeXTokenSpan(this, comment_start, true);
 			for (int bs = bsstart; bs < bsend; bs++) {
 				int pos = indexers[SPECIAL].get(bs);
-				// Log.v("specialsymbol", "@" + pos);
+				// TODO Skip consecutive backslashes & annotate if a backslash has escape effect
 				result[bs - bsstart + has_comment] = new TeXTokenSpan(this, pos, false);
 			}
 			return (T[]) result;
@@ -148,6 +146,27 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			return ttsp.getPosition();
 		}
 		return super.getSpanStart(what);
+	}
+
+	/**
+	 * Determine if the character at a specific position is escaped i.e. the backslash (if any) right before it does not
+	 * function as an escaped character. This can be determined by checking if the maximum number of backslashes right
+	 * before the character is even.
+	 * 
+	 * @param position
+	 *            The position to check
+	 * @return {@code true} if this position is not backslash-escaped
+	 */
+	public boolean isNonEscaped(int position) {
+		// int num_backslash_bef = 0;
+		// Position of farthest backslash before character at position
+		int fbspos = position - 1;
+		while (fbspos >= 0 && charAt(fbspos) == '\\') {
+			// num_backslash_bef++;
+			fbspos--;
+		}
+		// Note: Maximum number of backslash before `position` is `position - fbspos - 1`
+		return ((position - fbspos - 1) & 1) == 0;
 	}
 
 	@Override
