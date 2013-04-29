@@ -27,5 +27,5 @@ public class CharsSetIndexer extends CharIndexer {
 	public boolean isIndexedPosition(CharSequence text, int pos) {
 		return Arrays.binarySearch(indexed_chars, text.charAt(pos)) >= 0;
 	}
-	
+
 }

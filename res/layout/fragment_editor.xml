@@ -1,0 +1,27 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".EditorFragment" >
+
+    <EditText
+        android:id="@+id/document_area"
+        android:layout_width="match_parent"
+        android:layout_height="0dip"
+        android:layout_weight="1"
+        android:background="@drawable/textarea_background"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:gravity="top"
+        android:hint=""
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:saveEnabled="false"
+        android:scrollbars="vertical" />
+
+    <GridView
+        android:id="@+id/special_symbols_grid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+</LinearLayout>

@@ -22,5 +22,5 @@ public class SingleCharIndexer extends CharIndexer {
 	public boolean isIndexedPosition(CharSequence text, int pos) {
 		return text.charAt(pos) == this.indexed_char;
 	}
-	
+
 }

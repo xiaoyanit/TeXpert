@@ -1,11 +1,15 @@
 package lah.texpert;
 
+import java.io.File;
+import java.io.FileWriter;
+
 import lah.texpert.indexing.CharIndexer;
 import lah.texpert.indexing.CharsSetIndexer;
 import lah.texpert.indexing.SingleCharIndexer;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.style.CharacterStyle;
+import android.widget.Toast;
 
 /**
  * This extension of {@link SpannableStringBuilder} is to provide better syntax highlighting performance editing LaTeX
@@ -16,16 +20,23 @@ import android.text.style.CharacterStyle;
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
-	private LaTeXEditingActivity host_activity;
-
 	private static CharIndexer[] indexers;
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
 
-	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text) {
+	File file;
+
+	LaTeXEditingActivity host_activity;
+
+	boolean is_modified;
+
+	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
+
 		this.host_activity = activity;
-		
+		this.is_modified = false;
+		this.file = file;
+
 		// Initialize the indexers
 		if (indexers == null)
 			indexers = new CharIndexer[3];
@@ -47,6 +58,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				indexers[i].initialize(text);
 			}
 		}
+	}
+
+	public File getFile() {
+		return file;
 	}
 
 	@Override
@@ -151,6 +166,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return super.getSpanStart(what);
 	}
 
+	public boolean isModified() {
+		return is_modified;
+	}
+
 	/**
 	 * Determine if the character at a specific position is escaped i.e. the backslash (if any) right before it does not
 	 * function as an escaped character. This can be determined by checking if the maximum number of backslashes right
@@ -180,6 +199,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		super.replace(start, end, tb, tbstart, tbend);
 		if (host_activity != null)
 			host_activity.notifyDocumentModified();
+		is_modified = true;
 		return this;
 	}
 
@@ -194,6 +214,22 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		int sel_end = Selection.getSelectionEnd(this);
 		if (0 <= sel_start && sel_start <= sel_end)
 			replace(sel_start, sel_end, content);
+	}
+
+	public void save(File new_file, Runnable action_after_saved) {
+		try {
+			FileWriter writer = new FileWriter(new_file, false);
+			writer.write(toString());
+			writer.close();
+			file = new_file;
+			is_modified = false;
+			if (action_after_saved != null)
+				action_after_saved.run();
+		} catch (Exception e) {
+			Toast.makeText(host_activity, host_activity.getString(R.string.message_cannot_save_document),
+					Toast.LENGTH_SHORT).show();
+			e.printStackTrace(System.out);
+		}
 	}
 
 }

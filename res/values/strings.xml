@@ -4,6 +4,7 @@
     <string name="app_name">TeXpert</string>
     <string name="title_activity_latex_editing">TeXpert</string>
     <string name="title_activity_settings">Settings</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 
     <!-- Actions, menu labels -->
     <string name="action_file">File</string>
@@ -12,6 +13,7 @@
     <string name="action_save">Save</string>
     <string name="action_compile_pdflatex">pdfLaTeX</string>
     <string name="action_compile_bibtex">BibTeX</string>
+    <string name="action_clean">Clean</string>
     <string name="action_edit">Edit</string>
     <string name="action_search">Search</string>
     <string name="action_format">Format</string>

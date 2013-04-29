@@ -2,31 +2,37 @@ package lah.texpert;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 
+import lah.texpert.fragments.EditorFragment;
+import lah.texpert.fragments.LogViewFragment;
+import lah.texpert.fragments.QuickAccessToolkitFragment;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
-import android.app.Activity;
+import android.app.ActionBar;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.PreferenceManager;
-import android.text.Editable;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Toast;
-import android.widget.ViewSwitcher;
 
 /**
  * Main activity to edit the LaTeX source code
@@ -34,11 +40,39 @@ import android.widget.ViewSwitcher;
  * @author L.A.H.
  * 
  */
-public class LaTeXEditingActivity extends Activity {
+public class LaTeXEditingActivity extends FragmentActivity {
+
+	public class EditorLogPagerAdapter extends FragmentPagerAdapter {
+
+		public EditorLogPagerAdapter(FragmentManager fm) {
+			super(fm);
+		}
+
+		@Override
+		public int getCount() {
+			return 2;
+		}
+
+		@Override
+		public Fragment getItem(int position) {
+			switch (position) {
+			case 0:
+				if (editor_fragment == null)
+					editor_fragment = EditorFragment.newInstance();
+				return editor_fragment;
+			case 1:
+			default:
+				if (log_fragment == null)
+					log_fragment = LogViewFragment.newInstance();
+				return log_fragment;
+			}
+		}
+
+	}
 
 	class OpenDocumentTask extends AsyncTask<File, Void, String> {
 
-		private static final String TAG = "open_document_task";
+		static final String TAG = "open_document_task";
 
 		@Override
 		protected String doInBackground(File... params) {
@@ -57,16 +91,13 @@ public class LaTeXEditingActivity extends Activity {
 
 				// Indexing for syntax highlight
 				t = System.currentTimeMillis();
-				current_document = new LaTeXStringBuilder(LaTeXEditingActivity.this, result);
-				document_is_modified = false;
+				current_document = new LaTeXStringBuilder((LaTeXEditingActivity) getActivity(), result, file);
 				if (DEBUG)
 					Log.v(TAG, "Indexing takes " + (System.currentTimeMillis() - t) + "ms");
-
-				current_file = file;
 				inpstr.close();
 				return result;
 			} catch (Exception e) {
-				runOnUiThread(notify_open_document_error);
+				getActivity().runOnUiThread(notify_open_document_error);
 			}
 			return null;
 		}
@@ -75,37 +106,48 @@ public class LaTeXEditingActivity extends Activity {
 		protected void onPostExecute(String result) {
 			long t = System.currentTimeMillis();
 			if (result != null) {
-				document_textview.setText(current_document);
+				editor_fragment.setDocument(current_document);
 				if (DEBUG)
 					Log.v(TAG, "setText takes " + (System.currentTimeMillis() - t) + "ms");
 			}
 			t = System.currentTimeMillis();
-			reading_state_switcher.showPrevious();
+			// reading_state_switcher.showPrevious();
 			if (DEBUG)
 				Log.v(TAG, "showPrevious takes " + (System.currentTimeMillis() - t) + "ms");
 		}
 	}
 
-	private static final boolean DEBUG = false;
+	class OpeningFileBufferAdapter extends ArrayAdapter<File> {
+
+		public OpeningFileBufferAdapter(Context context) {
+			super(context, 0);
+		}
+
+	}
+
+	static final boolean DEBUG = false;
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file";
 
 	// "testlatex.tex"; // "lambda.tex";
-	private static final String TEST_FILE = "texbook.tex";
+	static final String TEST_FILE = "texbook.tex";
 
-	private static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
+	static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
-	protected static final String TEXPORTAL_ARGUMENT_ENGINE = "lah.texportal.argument.ENGINE";
+	static final String TEXPORTAL_ARGUMENT_ENGINE = "lah.texportal.argument.ENGINE";
+
+	ActionBar action_bar;
 
 	private final Runnable compile_document_bibtex = new Runnable() {
 
 		@Override
 		public void run() {
 			try {
-				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file))
-						.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "bibtex"), 0);
+				startActivityForResult(
+						new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_document.getFile()))
+								.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "bibtex"), 0);
 			} catch (ActivityNotFoundException e) {
 				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
 						Toast.LENGTH_SHORT).show();
@@ -118,8 +160,9 @@ public class LaTeXEditingActivity extends Activity {
 		@Override
 		public void run() {
 			try {
-				startActivityForResult(new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_file))
-						.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "pdflatex"), 0);
+				startActivityForResult(
+						new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_document.getFile()))
+								.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "pdflatex"), 0);
 			} catch (ActivityNotFoundException e) {
 				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
 						Toast.LENGTH_SHORT).show();
@@ -127,42 +170,45 @@ public class LaTeXEditingActivity extends Activity {
 		}
 	};
 
-	private LaTeXStringBuilder current_document;
+	public LaTeXStringBuilder current_document;
 
-	private File current_file;
-
-	private boolean document_is_modified;
-
-	private EditText document_textview;
+	EditorFragment editor_fragment;
 
 	private FileDialog file_select_dialog;
+
+	LogViewFragment log_fragment;
+
+	ViewPager main_pager;
+
+	EditorLogPagerAdapter main_pager_adapter;
+
+	QuickAccessToolkitFragment navigation_fragment;
 
 	private final Runnable notify_open_document_error = new Runnable() {
 
 		@Override
 		public void run() {
-			Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_open_document),
-					Toast.LENGTH_SHORT).show();
+			Toast.makeText(getActivity(), getString(R.string.message_cannot_open_document), Toast.LENGTH_SHORT).show();
 		}
 	};
 
-	private OpenDocumentTask open_document_task;
+	OpenDocumentTask open_document_task;
 
 	private AlertDialog overwrite_confirm_dialog;
 
 	private SharedPreferences pref;
 
-	private ViewSwitcher reading_state_switcher;
+	// ViewSwitcher reading_state_switcher;
 
 	private void compile(boolean is_bibtex) {
 		Runnable compile_document = is_bibtex ? this.compile_document_bibtex : this.compile_document_pdflatex;
-		if (current_file == null) {
+		if (current_document.getFile() == null) {
 			showSaveFileAs(compile_document);
 			return;
 		}
-		if (document_is_modified) {
+		if (current_document.isModified()) {
 			if (pref.getBoolean(PREF_AUTOSAVE_BEFORE_COMPILE, false))
-				saveDocumentAs(current_file, compile_document);
+				current_document.save(current_document.getFile(), compile_document);
 			else
 				confirmOverwrite(compile_document);
 		} else {
@@ -180,14 +226,18 @@ public class LaTeXEditingActivity extends Activity {
 
 						@Override
 						public void onClick(DialogInterface dialog, int which) {
-							saveDocumentAs(current_file, action_after_overwrite);
+							current_document.save(current_document.getFile(), action_after_overwrite);
 						}
 					}).setNegativeButton(getString(R.string.action_cancel), null).create();
 		overwrite_confirm_dialog.show();
 	}
 
+	private LaTeXEditingActivity getActivity() {
+		return this;
+	}
+
 	public void notifyDocumentModified() {
-		document_is_modified = true;
+		// Update action bar
 	}
 
 	@Override
@@ -195,19 +245,23 @@ public class LaTeXEditingActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
 
+		main_pager_adapter = new EditorLogPagerAdapter(getSupportFragmentManager());
+		main_pager = (ViewPager) findViewById(R.id.editor_log_pager);
+		main_pager.setAdapter(main_pager_adapter);
+
+		action_bar = getActionBar();
+		// action_bar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+		// action_bar.setListNavigationCallbacks(new OpeningFileBufferAdapter(this), new OnNavigationListener() {
+		//
+		// @Override
+		// public boolean onNavigationItemSelected(int itemPosition, long itemId) {
+		// // TODO Auto-generated method stub
+		// return false;
+		// }
+		// });
+
 		// Prepare switcher
-		reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
-
-		// Prepare document editing area
-		current_document = new LaTeXStringBuilder(this, "");
-		document_textview = (EditText) findViewById(R.id.document_area);
-		document_textview.setEditableFactory(new Editable.Factory() {
-
-			@Override
-			public Editable newEditable(CharSequence source) {
-				return current_document;
-			}
-		});
+		// reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
 
 		// Prepare quick insertion area
 		// final ExpandableListView insertion_listview = (ExpandableListView)
@@ -246,10 +300,11 @@ public class LaTeXEditingActivity extends Activity {
 					&& (file = new File(data.getPath())).exists()) {
 				intent.setData(null);
 				openDocument(file);
-			} else {
-				document_textview.setText("");
-				current_document = (LaTeXStringBuilder) document_textview.getText();
 			}
+			// else {
+			// document_textview.setText("");
+			// current_document = (LaTeXStringBuilder) document_textview.getText();
+			// }
 		}
 		pref = PreferenceManager.getDefaultSharedPreferences(this);
 	}
@@ -265,9 +320,8 @@ public class LaTeXEditingActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_new:
-			current_file = null;
-			current_document = new LaTeXStringBuilder(this, "");
-			document_textview.setText(current_document);
+			current_document = new LaTeXStringBuilder(this, "", null);
+			editor_fragment.setDocument(current_document);
 			return true;
 		case R.id.action_open:
 			if (file_select_dialog == null)
@@ -281,7 +335,7 @@ public class LaTeXEditingActivity extends Activity {
 			file_select_dialog.show();
 			return true;
 		case R.id.action_save:
-			if (current_file == null) {
+			if (current_document.getFile() == null) {
 				// Ask user to select a file to save as
 				showSaveFileAs(null);
 			} else {
@@ -309,71 +363,30 @@ public class LaTeXEditingActivity extends Activity {
 		super.onPause();
 		if (open_document_task != null)
 			open_document_task.cancel(true);
-		if (current_file != null)
-			pref.edit().putString(PREF_LAST_OPEN_FILE, current_file.getAbsolutePath()).commit();
+		if (current_document.getFile() != null)
+			pref.edit().putString(PREF_LAST_OPEN_FILE, current_document.getFile().getAbsolutePath()).commit();
 	}
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-		if (document_textview == null)
-			return;
-
-		// Update the font size
-		String font_size = pref.getString(SettingsActivity.PREF_FONT_SIZE, "18");
-		try {
-			document_textview.setTextSize(Integer.parseInt(font_size));
-		} catch (Exception e) {
-			document_textview.setTextSize(18);
-		}
-
-		// Update the font family
-		String font_family = pref.getString(SettingsActivity.PREF_FONT_FAMILY, "Sans Serif");
-		if (font_family.equals("Sans Serif"))
-			document_textview.setTypeface(Typeface.SANS_SERIF);
-		else if (font_family.equals("Monospace"))
-			document_textview.setTypeface(Typeface.MONOSPACE);
-		else
-			document_textview.setTypeface(Typeface.SERIF);
-	}
-
-	private void openDocument(File file) {
+	public void openDocument(File file) {
 		if (file == null || !file.exists())
 			return;
-		Toast.makeText(LaTeXEditingActivity.this, "Opening " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+		// Toast.makeText(getActivity(), "Opening " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
 		// Switch to temporary view
-		reading_state_switcher.showNext();
+		// reading_state_switcher.showNext();
 		// Read and style the file in background thread
 		(open_document_task = new OpenDocumentTask()).execute(file);
 	}
 
-	private void saveDocumentAs(File file, Runnable action_after_saved) {
-		try {
-			if (current_document != null && file != null) {
-				FileWriter writer = new FileWriter(file, false);
-				writer.write(current_document.toString());
-				writer.close();
-				current_file = file;
-				document_is_modified = false;
-				if (action_after_saved != null)
-					action_after_saved.run();
-			}
-		} catch (Exception e) {
-			Toast.makeText(this, getString(R.string.message_cannot_save_document), Toast.LENGTH_SHORT).show();
-			e.printStackTrace(System.out);
-		}
-	}
-
 	public void showSaveFileAs(final Runnable action_after_save) {
 		// Ask user to select a file to save as
-		final EditText file_path_field = new EditText(this);
-		new AlertDialog.Builder(this).setTitle(getString(R.string.title_save_as))
-				.setMessage("Please type the path to save file as").setView(file_path_field)
-				.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
+		final EditText file_path_field = new EditText(getActivity());
+		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as))
+		// .setMessage("Please type the path to save file as")
+				.setView(file_path_field).setPositiveButton(getString(R.string.action_save), new OnClickListener() {
 
 					@Override
 					public void onClick(DialogInterface arg0, int arg1) {
-						saveDocumentAs(new File(file_path_field.getText().toString()), action_after_save);
+						current_document.save(new File(file_path_field.getText().toString()), action_after_save);
 					}
 				}).setNegativeButton(getString(R.string.action_cancel), null).show();
 	}

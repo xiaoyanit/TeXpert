@@ -36,6 +36,12 @@
                 android:orderInCategory="100"
                 android:showAsAction="ifRoom"
                 android:title="@string/action_compile_bibtex"/>
+            <item
+                android:id="@+id/action_clean"
+                android:icon="@drawable/ic_action_delete"
+                android:orderInCategory="100"
+                android:showAsAction="ifRoom"
+                android:title="@string/action_clean"/>
         </menu>
     </item>
     <item
