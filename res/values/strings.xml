@@ -25,6 +25,7 @@
     <string name="message_cannot_send_texportal">Cannot send document for compilation: TeXPortal is not installed!</string>
     <string name="message_cannot_save_document">Cannot save document!</string>
     <string name="message_cannot_open_document">Cannot open document!</string>
+    <string name="message_unimplemented_feature">This feature is not yet implemented!</string>
 
     <!-- Information messages -->
     <string name="reading_in_progress">Reading in progress &#8230;</string>

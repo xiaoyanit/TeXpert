@@ -24,11 +24,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
 
-	File file;
+	private File file;
 
-	LaTeXEditingActivity host_activity;
+	private LaTeXEditingActivity host_activity;
 
-	boolean is_modified;
+	private boolean is_modified;
 
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);

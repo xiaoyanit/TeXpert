@@ -106,7 +106,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		protected void onPostExecute(String result) {
 			long t = System.currentTimeMillis();
 			if (result != null) {
-				editor_fragment.setDocument(current_document);
+				setCurrentDocument(current_document);
 				if (DEBUG)
 					Log.v(TAG, "setText takes " + (System.currentTimeMillis() - t) + "ms");
 			}
@@ -263,32 +263,6 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		// Prepare switcher
 		// reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
 
-		// Prepare quick insertion area
-		// final ExpandableListView insertion_listview = (ExpandableListView)
-		// findViewById(R.id.quick_insertion_items_listview);
-		// final QuickInsertionItemsAdapter adapter = new QuickInsertionItemsAdapter(this);
-		// insertion_listview.setAdapter(adapter);
-		// insertion_listview.setOnChildClickListener(new OnChildClickListener() {
-		//
-		// @Override
-		// public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id)
-		// {
-		// if (current_document != null) {
-		// current_document.replaceSelection(adapter.getChild(groupPosition, childPosition));
-		// }
-		// return true;
-		// }
-		// });
-		// insertion_listview.setOnGroupExpandListener(new OnGroupExpandListener() {
-		//
-		// @Override
-		// public void onGroupExpand(int groupPosition) {
-		// if (adapter.current_expanding_group > 0 && adapter.current_expanding_group != groupPosition)
-		// insertion_listview.collapseGroup(adapter.current_expanding_group);
-		// adapter.current_expanding_group = groupPosition;
-		// }
-		// });
-
 		// Handling user intent
 		if (DEBUG) {
 			openDocument(new File(Environment.getExternalStorageDirectory(), TEST_FILE));
@@ -320,8 +294,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_new:
-			current_document = new LaTeXStringBuilder(this, "", null);
-			editor_fragment.setDocument(current_document);
+			setCurrentDocument(new LaTeXStringBuilder(this, "", null));
 			return true;
 		case R.id.action_open:
 			if (file_select_dialog == null)
@@ -348,6 +321,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		case R.id.action_compile_bibtex:
 			compile(true);
 			return true;
+		case R.id.action_search:
+		case R.id.action_format:
+		case R.id.action_clean:
+			Toast.makeText(this, getString(R.string.message_unimplemented_feature), Toast.LENGTH_SHORT).show();
+			return true;
 		case R.id.action_settings:
 			startActivity(new Intent(this, SettingsActivity.class));
 			return true;
@@ -363,7 +341,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		super.onPause();
 		if (open_document_task != null)
 			open_document_task.cancel(true);
-		if (current_document.getFile() != null)
+		if (current_document != null && current_document.getFile() != null)
 			pref.edit().putString(PREF_LAST_OPEN_FILE, current_document.getFile().getAbsolutePath()).commit();
 	}
 
@@ -375,6 +353,18 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		// reading_state_switcher.showNext();
 		// Read and style the file in background thread
 		(open_document_task = new OpenDocumentTask()).execute(file);
+	}
+
+	public void setCurrentDocument(LaTeXStringBuilder document) {
+		current_document = document;
+		editor_fragment.setDocument(current_document);
+		File file = current_document.getFile();
+		if (file != null) {
+			String name = file.getName();
+			if (name.endsWith(".tex") || name.endsWith(".ltx"))
+				log_fragment.startTrackingLogFile(new File(file.getParentFile(), name.substring(0, name.length() - 4)
+						+ ".log"));
+		}
 	}
 
 	public void showSaveFileAs(final Runnable action_after_save) {

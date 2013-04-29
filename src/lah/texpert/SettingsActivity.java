@@ -11,7 +11,6 @@ import android.preference.PreferenceManager;
  * @author L.A.H.
  * 
  */
-@SuppressWarnings({ "deprecation" })
 public class SettingsActivity extends PreferenceActivity {
 
 	public static final String PREF_FONT_SIZE = "font_size", PREF_FONT_FAMILY = "font_family";
@@ -34,6 +33,7 @@ public class SettingsActivity extends PreferenceActivity {
 						""));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	protected void onPostCreate(Bundle savedInstanceState) {
 		super.onPostCreate(savedInstanceState);
@@ -41,4 +41,5 @@ public class SettingsActivity extends PreferenceActivity {
 		bindPreferenceSummaryToValue(findPreference(PREF_FONT_SIZE));
 		bindPreferenceSummaryToValue(findPreference(PREF_FONT_FAMILY));
 	}
+
 }

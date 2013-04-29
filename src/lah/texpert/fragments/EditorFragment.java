@@ -17,6 +17,12 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.GridView;
 
+/**
+ * Fragment for editing LaTeX source code
+ * 
+ * @author L.A.H.
+ * 
+ */
 public class EditorFragment extends Fragment {
 
 	static final String[] special_symbols = { "\\", "$", "{}", "[]", "^", "_", "()", "%", "&", "#" };
