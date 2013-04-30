@@ -13,6 +13,8 @@ import android.text.Editable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.GridView;
@@ -46,9 +48,17 @@ public class EditorFragment extends Fragment {
 		final LaTeXEditingActivity activity = (LaTeXEditingActivity) getActivity();
 
 		// Prepare the grid of special symbols
-		GridView ssg = (GridView) view.findViewById(R.id.special_symbols_grid);
-		ssg.setNumColumns(special_symbols.length);
-		ssg.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, special_symbols));
+		GridView symbols_grid = (GridView) view.findViewById(R.id.special_symbols_grid);
+		symbols_grid.setNumColumns(special_symbols.length);
+		symbols_grid.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1,
+				special_symbols));
+		symbols_grid.setOnItemClickListener(new OnItemClickListener() {
+
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+				activity.replaceCurrentSelection(special_symbols[position]);
+			}
+		});
 
 		// Prepare document editing area
 		activity.current_document = new LaTeXStringBuilder(activity, "", null);

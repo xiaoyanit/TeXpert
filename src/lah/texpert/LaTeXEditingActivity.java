@@ -5,7 +5,7 @@ import java.io.FileInputStream;
 
 import lah.texpert.fragments.EditorFragment;
 import lah.texpert.fragments.LogViewFragment;
-import lah.texpert.fragments.QuickAccessToolkitFragment;
+import lah.texpert.fragments.QuickAccessFragment;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
@@ -26,6 +26,7 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.Menu;
@@ -182,8 +183,6 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	EditorLogPagerAdapter main_pager_adapter;
 
-	QuickAccessToolkitFragment navigation_fragment;
-
 	private final Runnable notify_open_document_error = new Runnable() {
 
 		@Override
@@ -197,6 +196,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private AlertDialog overwrite_confirm_dialog;
 
 	private SharedPreferences pref;
+
+	QuickAccessFragment quick_access_fragment;
 
 	// ViewSwitcher reading_state_switcher;
 
@@ -250,15 +251,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		main_pager.setAdapter(main_pager_adapter);
 
 		action_bar = getActionBar();
-		// action_bar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
-		// action_bar.setListNavigationCallbacks(new OpeningFileBufferAdapter(this), new OnNavigationListener() {
-		//
-		// @Override
-		// public boolean onNavigationItemSelected(int itemPosition, long itemId) {
-		// // TODO Auto-generated method stub
-		// return false;
-		// }
-		// });
+		action_bar.setNavigationMode(ActionBar.NAVIGATION_MODE_STANDARD);
+		action_bar.setHomeButtonEnabled(true);
 
 		// Prepare switcher
 		// reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
@@ -293,6 +287,16 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
+		case android.R.id.home:
+			FragmentTransaction trans = getSupportFragmentManager().beginTransaction();
+			if (quick_access_fragment == null)
+				trans.replace(R.id.quick_access_pane, (quick_access_fragment = QuickAccessFragment.newInstance()))
+						.commit();
+			else if (quick_access_fragment.isVisible())
+				trans.hide(quick_access_fragment).commit();
+			else
+				trans.show(quick_access_fragment).commit();
+			return true;
 		case R.id.action_new:
 			setCurrentDocument(new LaTeXStringBuilder(this, "", null));
 			return true;
@@ -353,6 +357,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		// reading_state_switcher.showNext();
 		// Read and style the file in background thread
 		(open_document_task = new OpenDocumentTask()).execute(file);
+	}
+
+	public void replaceCurrentSelection(String text) {
+		if (current_document != null)
+			current_document.replaceSelection(text);
 	}
 
 	public void setCurrentDocument(LaTeXStringBuilder document) {

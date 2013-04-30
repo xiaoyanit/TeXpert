@@ -8,37 +8,19 @@
 
     <!-- Quick navigation -->
 
-<!--     <include layout="@layout/fragment_quick_access_toolkit" /> -->
+    <FrameLayout
+        android:id="@+id/quick_access_pane"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent" />
 
-    <ViewSwitcher
-        android:id="@+id/reading_state_switcher"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" >
+    <!-- Progress bar to be display while reading the source file -->
 
-        <!-- Document editing area -->
 
-        <EditText
-            android:id="@+id/document_area"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/textarea_background"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:gravity="top"
-            android:hint=""
-            android:inputType="textMultiLine|textNoSuggestions"
-            android:saveEnabled="false"
-            android:scrollbars="vertical" />
-
-        <!-- Progress bar to be display while reading the source file -->
-
-        <ProgressBar
-            style="?android:attr/progressBarStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center" />
-    </ViewSwitcher>
+    <!-- <ProgressBar -->
+    <!-- style="?android:attr/progressBarStyle" -->
+    <!-- android:layout_width="wrap_content" -->
+    <!-- android:layout_height="wrap_content" -->
+    <!-- android:layout_gravity="center" /> -->
 
     <android.support.v4.view.ViewPager
         android:id="@+id/editor_log_pager"
