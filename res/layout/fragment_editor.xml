@@ -5,23 +5,53 @@
     android:orientation="vertical"
     tools:context=".EditorFragment" >
 
-    <EditText
-        android:id="@+id/document_area"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dip"
-        android:layout_weight="1"
-        android:background="@drawable/textarea_background"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:gravity="top"
-        android:hint=""
-        android:inputType="textMultiLine|textNoSuggestions"
-        android:saveEnabled="false"
-        android:scrollbars="vertical" />
+        android:layout_weight="1" >
 
-    <GridView
-        android:id="@+id/special_symbols_grid"
+        <!-- Quick access/navigation -->
+
+        <ExpandableListView
+            android:id="@+id/quick_insertion_items_listview"
+            android:layout_width="150dp"
+            android:layout_height="match_parent" />
+
+        <!-- Editing area -->
+
+        <EditText
+            android:id="@+id/document_area"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/textarea_background"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="top"
+            android:hint=""
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:saveEnabled="false"
+            android:scrollbars="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content" >
+
+        <!-- Button to toggle the quick access -->
+
+        <ImageButton
+            android:id="@+id/quick_access_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/action_toggle_quick_access"
+            android:src="@drawable/ic_action_toggle_quick_access" />
+
+        <!-- Grid of special symbols -->
+
+        <GridView
+            android:id="@+id/special_symbols_grid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
 
 </LinearLayout>

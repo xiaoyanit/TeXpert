@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 
 import lah.texpert.fragments.EditorFragment;
 import lah.texpert.fragments.LogViewFragment;
-import lah.texpert.fragments.QuickAccessFragment;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
@@ -26,7 +25,6 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.app.FragmentTransaction;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.Menu;
@@ -67,6 +65,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 					log_fragment = LogViewFragment.newInstance();
 				return log_fragment;
 			}
+		}
+
+		@Override
+		public float getPageWidth(int position) {
+			return position == 0 ? 1.0f : 0.6f;
 		}
 
 	}
@@ -197,8 +200,6 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private SharedPreferences pref;
 
-	QuickAccessFragment quick_access_fragment;
-
 	// ViewSwitcher reading_state_switcher;
 
 	private void compile(boolean is_bibtex) {
@@ -238,7 +239,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	}
 
 	public void notifyDocumentModified() {
-		// Update action bar
+		updateActionBar();
 	}
 
 	@Override
@@ -246,18 +247,19 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_latex_editing);
 
+		// Setup the main pager
 		main_pager_adapter = new EditorLogPagerAdapter(getSupportFragmentManager());
 		main_pager = (ViewPager) findViewById(R.id.editor_log_pager);
 		main_pager.setAdapter(main_pager_adapter);
 
+		// Prepare action bar
 		action_bar = getActionBar();
-		action_bar.setNavigationMode(ActionBar.NAVIGATION_MODE_STANDARD);
-		action_bar.setHomeButtonEnabled(true);
 
 		// Prepare switcher
 		// reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
 
-		// Handling user intent
+		// Handling user intent (in case open from file browsing app)
+		current_document = new LaTeXStringBuilder(this, "", null);
 		if (DEBUG) {
 			openDocument(new File(Environment.getExternalStorageDirectory(), TEST_FILE));
 		} else {
@@ -269,11 +271,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 				intent.setData(null);
 				openDocument(file);
 			}
-			// else {
-			// document_textview.setText("");
-			// current_document = (LaTeXStringBuilder) document_textview.getText();
-			// }
 		}
+		updateActionBar();
+
 		pref = PreferenceManager.getDefaultSharedPreferences(this);
 	}
 
@@ -287,18 +287,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case android.R.id.home:
-			FragmentTransaction trans = getSupportFragmentManager().beginTransaction();
-			if (quick_access_fragment == null)
-				trans.replace(R.id.quick_access_pane, (quick_access_fragment = QuickAccessFragment.newInstance()))
-						.commit();
-			else if (quick_access_fragment.isVisible())
-				trans.hide(quick_access_fragment).commit();
-			else
-				trans.show(quick_access_fragment).commit();
-			return true;
 		case R.id.action_new:
-			setCurrentDocument(new LaTeXStringBuilder(this, "", null));
+			showNewDocumentDialog();
 			return true;
 		case R.id.action_open:
 			if (file_select_dialog == null)
@@ -352,7 +342,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	public void openDocument(File file) {
 		if (file == null || !file.exists())
 			return;
-		// Toast.makeText(getActivity(), "Opening " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+		Toast.makeText(getActivity(), "Open " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
 		// Switch to temporary view
 		// reading_state_switcher.showNext();
 		// Read and style the file in background thread
@@ -364,7 +354,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			current_document.replaceSelection(text);
 	}
 
-	public void setCurrentDocument(LaTeXStringBuilder document) {
+	private void setCurrentDocument(LaTeXStringBuilder document) {
 		current_document = document;
 		editor_fragment.setDocument(current_document);
 		File file = current_document.getFile();
@@ -373,10 +363,16 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			if (name.endsWith(".tex") || name.endsWith(".ltx"))
 				log_fragment.startTrackingLogFile(new File(file.getParentFile(), name.substring(0, name.length() - 4)
 						+ ".log"));
+			updateActionBar();
 		}
 	}
 
-	public void showSaveFileAs(final Runnable action_after_save) {
+	private void showNewDocumentDialog() {
+		// TODO Implement
+		setCurrentDocument(new LaTeXStringBuilder(this, "", null));
+	}
+
+	private void showSaveFileAs(final Runnable action_after_save) {
 		// Ask user to select a file to save as
 		final EditText file_path_field = new EditText(getActivity());
 		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as))
@@ -388,6 +384,13 @@ public class LaTeXEditingActivity extends FragmentActivity {
 						current_document.save(new File(file_path_field.getText().toString()), action_after_save);
 					}
 				}).setNegativeButton(getString(R.string.action_cancel), null).show();
+	}
+
+	private void updateActionBar() {
+		if (current_document.getFile() != null)
+			action_bar.setSubtitle(current_document.getFile().getName() + (current_document.isModified() ? "*" : ""));
+		else
+			action_bar.setSubtitle("untitled");
 	}
 
 }

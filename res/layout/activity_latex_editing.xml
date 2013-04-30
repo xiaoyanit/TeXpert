@@ -6,15 +6,7 @@
     android:orientation="horizontal"
     tools:context=".LaTeXEditingActivity" >
 
-    <!-- Quick navigation -->
-
-    <FrameLayout
-        android:id="@+id/quick_access_pane"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent" />
-
     <!-- Progress bar to be display while reading the source file -->
-
 
     <!-- <ProgressBar -->
     <!-- style="?android:attr/progressBarStyle" -->
