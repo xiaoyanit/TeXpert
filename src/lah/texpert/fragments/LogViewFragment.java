@@ -27,18 +27,18 @@ public class LogViewFragment extends Fragment {
 	}
 
 	/**
-	 * Log file to display
+	 * Log file to bind to
 	 */
-	File log_file;
+	private File log_file;
 
 	private String log_file_name;
 
-	TextView log_textview;
+	private TextView log_textview;
 
 	/**
 	 * Observers to watch for changes in the source directory
 	 */
-	FileObserver src_dir_observer;
+	private FileObserver src_dir_observer;
 
 	public LogViewFragment() {
 		// Required empty public constructor
@@ -96,11 +96,23 @@ public class LogViewFragment extends Fragment {
 			@Override
 			public void onEvent(int event, String path) {
 				// log file is overwritten by external process ==> reload the log
-				if (path.equals(log_file_name))
+				if (path != null && log_file_name != null && path.equals(log_file_name))
 					loadLog();
 			}
 		};
 		src_dir_observer.startWatching();
+	}
+
+	public void stopTracking() {
+		if (src_dir_observer != null)
+			src_dir_observer.stopWatching();
+		log_textview.post(new Runnable() {
+
+			@Override
+			public void run() {
+				log_textview.setText("");
+			}
+		});
 	}
 
 }

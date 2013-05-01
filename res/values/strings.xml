@@ -11,9 +11,11 @@
     <string name="action_new">New</string>
     <string name="action_open">Open</string>
     <string name="action_save">Save</string>
+    <string name="action_clean">Clean</string>
+    <string name="action_external">External</string>
     <string name="action_compile_pdflatex">pdfLaTeX</string>
     <string name="action_compile_bibtex">BibTeX</string>
-    <string name="action_clean">Clean</string>
+    <string name="action_open_pdf">Open PDF</string>
     <string name="action_edit">Edit</string>
     <string name="action_search">Search</string>
     <string name="action_format">Format</string>
@@ -26,10 +28,12 @@
     <string name="message_cannot_send_texportal">Cannot send document for compilation: TeXPortal is not installed!</string>
     <string name="message_cannot_save_document">Cannot save document!</string>
     <string name="message_cannot_open_document">Cannot open document!</string>
-    <string name="message_unimplemented_feature">This feature is not yet implemented!</string>
+    <string name="message_no_pdf_viewer_app">No PDF viewer app found!</string>
+    <string name="message_unimplemented_feature">This feature is not implemented yet!</string>
 
     <!-- Information messages -->
-    <string name="reading_in_progress">Reading in progress &#8230;</string>
+    <string name="info_reading_in_progress">Reading in progress &#8230;</string>
+    <string name="info_no_pdf_to_open">No PDF file to open</string>
 
     <!-- Settings -->
     <string name="pref_header_editor">Editing</string>

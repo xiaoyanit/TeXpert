@@ -26,10 +26,10 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter {
 
 	static final String[] access_categories = { "Outline", "External", "Command", "Label" };
 
-	static final String pilcrow = "\u00B6", cent = "\u00A2", section = "\u00A7";
-
-	private static final String[][] insertion_items = { { section, cent, pilcrow }, { "test.png" },
+	private static final String[][] insertion_items = { { "\u00B6", "\u00A2", "\u00A7" }, { "test.png" },
 			{ "\\begin{}\n\\end{}\n", "\\section", "\\lambda" }, {} };
+
+	static final String pilcrow = "\u00B6", cent = "\u00A2", section = "\u00A7";
 
 	int current_expanding_group = -1;
 

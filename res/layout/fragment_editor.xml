@@ -15,7 +15,8 @@
         <ExpandableListView
             android:id="@+id/quick_insertion_items_listview"
             android:layout_width="150dp"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
         <!-- Editing area -->
 
@@ -43,8 +44,10 @@
             android:id="@+id/quick_access_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:background="@android:color/holo_blue_dark"
             android:contentDescription="@string/action_toggle_quick_access"
-            android:src="@drawable/ic_action_toggle_quick_access" />
+            android:src="@drawable/ic_quick_access" />
 
         <!-- Grid of special symbols -->
 

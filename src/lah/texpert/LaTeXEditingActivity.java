@@ -32,9 +32,12 @@ import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.widget.ViewSwitcher;
 
 /**
  * Main activity to edit the LaTeX source code
+ * 
+ * TODO Fix crashes when swiping to other fragment right after load (but have not fully load document)
  * 
  * @author L.A.H.
  * 
@@ -115,7 +118,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 					Log.v(TAG, "setText takes " + (System.currentTimeMillis() - t) + "ms");
 			}
 			t = System.currentTimeMillis();
-			// reading_state_switcher.showPrevious();
+			state_switcher.showPrevious();
 			if (DEBUG)
 				Log.v(TAG, "showPrevious takes " + (System.currentTimeMillis() - t) + "ms");
 		}
@@ -153,8 +156,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 						new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_document.getFile()))
 								.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "bibtex"), 0);
 			} catch (ActivityNotFoundException e) {
-				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
-						Toast.LENGTH_SHORT).show();
+				showToast(R.string.message_cannot_send_texportal);
 			}
 		}
 	};
@@ -168,8 +170,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 						new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_document.getFile()))
 								.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "pdflatex"), 0);
 			} catch (ActivityNotFoundException e) {
-				Toast.makeText(LaTeXEditingActivity.this, getString(R.string.message_cannot_send_texportal),
-						Toast.LENGTH_SHORT).show();
+				showToast(R.string.message_cannot_send_texportal);
 			}
 		}
 	};
@@ -190,7 +191,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 		@Override
 		public void run() {
-			Toast.makeText(getActivity(), getString(R.string.message_cannot_open_document), Toast.LENGTH_SHORT).show();
+			showToast(R.string.message_cannot_open_document);
 		}
 	};
 
@@ -198,14 +199,22 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private AlertDialog overwrite_confirm_dialog;
 
+	private File pdf_file;
+
 	private SharedPreferences pref;
 
-	// ViewSwitcher reading_state_switcher;
+	/**
+	 * This switcher is to be shown during reading phase so as to disable 'swiping' action in pager
+	 * 
+	 * Without disabling such swiping, crash might occur due to the edit text being 'invalidate' while the underlying
+	 * static indexer is modified.
+	 */
+	private ViewSwitcher state_switcher;
 
 	private void compile(boolean is_bibtex) {
 		Runnable compile_document = is_bibtex ? this.compile_document_bibtex : this.compile_document_pdflatex;
 		if (current_document.getFile() == null) {
-			showSaveFileAs(compile_document);
+			showSaveAsDialog(compile_document);
 			return;
 		}
 		if (current_document.isModified()) {
@@ -238,8 +247,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		return this;
 	}
 
-	public void notifyDocumentModified() {
+	public void notifyDocumentStateChanged() {
 		updateActionBar();
+		updateFileInfo();
 	}
 
 	@Override
@@ -256,7 +266,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		action_bar = getActionBar();
 
 		// Prepare switcher
-		// reading_state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
+		state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
 
 		// Handling user intent (in case open from file browsing app)
 		current_document = new LaTeXStringBuilder(this, "", null);
@@ -304,7 +314,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		case R.id.action_save:
 			if (current_document.getFile() == null) {
 				// Ask user to select a file to save as
-				showSaveFileAs(null);
+				showSaveAsDialog(null);
 			} else {
 				confirmOverwrite(null);
 			}
@@ -315,10 +325,21 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		case R.id.action_compile_bibtex:
 			compile(true);
 			return true;
+		case R.id.action_open_pdf:
+			if (pdf_file != null && pdf_file.exists()) {
+				try {
+					startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.fromFile(pdf_file),
+							"application/pdf"));
+				} catch (ActivityNotFoundException e) {
+					showToast(R.string.message_no_pdf_viewer_app);
+				}
+			} else
+				showToast(R.string.info_no_pdf_to_open);
+			return true;
 		case R.id.action_search:
 		case R.id.action_format:
 		case R.id.action_clean:
-			Toast.makeText(this, getString(R.string.message_unimplemented_feature), Toast.LENGTH_SHORT).show();
+			showToast(R.string.message_unimplemented_feature);
 			return true;
 		case R.id.action_settings:
 			startActivity(new Intent(this, SettingsActivity.class));
@@ -331,7 +352,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	}
 
 	@Override
-	public void onPause() {
+	protected void onPause() {
 		super.onPause();
 		if (open_document_task != null)
 			open_document_task.cancel(true);
@@ -339,12 +360,13 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			pref.edit().putString(PREF_LAST_OPEN_FILE, current_document.getFile().getAbsolutePath()).commit();
 	}
 
-	public void openDocument(File file) {
+	private void openDocument(File file) {
 		if (file == null || !file.exists())
 			return;
-		Toast.makeText(getActivity(), "Open " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
-		// Switch to temporary view
-		// reading_state_switcher.showNext();
+		// Notify user
+		showToast("Open " + file.getAbsolutePath());
+		// Switch to progress bar view
+		state_switcher.showNext();
 		// Read and style the file in background thread
 		(open_document_task = new OpenDocumentTask()).execute(file);
 	}
@@ -357,14 +379,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private void setCurrentDocument(LaTeXStringBuilder document) {
 		current_document = document;
 		editor_fragment.setDocument(current_document);
-		File file = current_document.getFile();
-		if (file != null) {
-			String name = file.getName();
-			if (name.endsWith(".tex") || name.endsWith(".ltx"))
-				log_fragment.startTrackingLogFile(new File(file.getParentFile(), name.substring(0, name.length() - 4)
-						+ ".log"));
-			updateActionBar();
-		}
+		updateFileInfo();
 	}
 
 	private void showNewDocumentDialog() {
@@ -372,7 +387,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		setCurrentDocument(new LaTeXStringBuilder(this, "", null));
 	}
 
-	private void showSaveFileAs(final Runnable action_after_save) {
+	private void showSaveAsDialog(final Runnable action_after_save) {
 		// Ask user to select a file to save as
 		final EditText file_path_field = new EditText(getActivity());
 		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as))
@@ -386,11 +401,36 @@ public class LaTeXEditingActivity extends FragmentActivity {
 				}).setNegativeButton(getString(R.string.action_cancel), null).show();
 	}
 
+	private void showToast(int msg_res_id) {
+		Toast.makeText(this, getString(msg_res_id), Toast.LENGTH_SHORT).show();
+	}
+
+	private void showToast(String msg) {
+		Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+	}
+
 	private void updateActionBar() {
 		if (current_document.getFile() != null)
 			action_bar.setSubtitle(current_document.getFile().getName() + (current_document.isModified() ? "*" : ""));
 		else
 			action_bar.setSubtitle("untitled");
+	}
+
+	private void updateFileInfo() {
+		File file = current_document.getFile();
+		if (file != null) {
+			String name = file.getName();
+			if (name.endsWith(".tex") || name.endsWith(".ltx")) {
+				File dir = file.getParentFile();
+				String basename = name.substring(0, name.length() - 4);
+				log_fragment.startTrackingLogFile(new File(dir, basename + ".log"));
+				pdf_file = new File(dir, basename + ".pdf");
+			}
+		} else {
+			log_fragment.stopTracking();
+			pdf_file = null;
+		}
+		updateActionBar();
 	}
 
 }

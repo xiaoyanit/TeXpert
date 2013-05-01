@@ -119,15 +119,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int pci_nonesc = pcistart;
 			for (; pci_nonesc < pciend; pci_nonesc++) {
 				int pcpos = indexers[PERCENT].get(pci_nonesc);
-				// FIX BUG: This might be wrong if we determine if this % is escaped simply by looking if the previous
-				// character is a backslash! For illustration, % in " \\\\%" is also a non-escaped %!
-				// TODO Fix the same mistake for escaped command or other special symbol case
-				/*
-				 * int pos = pcpos - 1; int num_backslash_bef = 0; while (pos >= start) { if (charAt(pos) == '\\') {
-				 * num_backslash_bef++; pos--; } else break; } // An even number of backslash (0, 2, 4, etc.) before
-				 * this % indicates that this is not an escaped one. if ((num_backslash_bef & 1) == 0) break;
-				 */
 				if (isNonEscaped(pcpos))
+					// Make sure that this is not escaped % to break
+					// TODO Do the same for escaped command as well
 					break;
 			}
 			int comment_start = end;
@@ -181,7 +175,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	 */
 	public boolean isNonEscaped(int position) {
 		// int num_backslash_bef = 0;
-		// Position of farthest backslash before character at position
+		// Find the position of farthest backslash right before character at position
 		int fbspos = position - 1;
 		while (fbspos >= 0 && charAt(fbspos) == '\\') {
 			// num_backslash_bef++;
@@ -198,7 +192,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			indexers[i].replace(this, start, end, tb, tbstart, tbend);
 		super.replace(start, end, tb, tbstart, tbend);
 		if (host_activity != null)
-			host_activity.notifyDocumentModified();
+			host_activity.notifyDocumentStateChanged();
 		is_modified = true;
 		return this;
 	}
@@ -225,6 +219,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			is_modified = false;
 			if (action_after_saved != null)
 				action_after_saved.run();
+			host_activity.notifyDocumentStateChanged();
 		} catch (Exception e) {
 			Toast.makeText(host_activity, host_activity.getString(R.string.message_cannot_save_document),
 					Toast.LENGTH_SHORT).show();
