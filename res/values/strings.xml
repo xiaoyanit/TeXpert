@@ -17,6 +17,7 @@
     <string name="action_compile_bibtex">BibTeX</string>
     <string name="action_open_pdf">Open PDF</string>
     <string name="action_edit">Edit</string>
+    <string name="action_undo">Undo</string>
     <string name="action_search">Search</string>
     <string name="action_format">Format</string>
     <string name="action_settings">Settings</string>

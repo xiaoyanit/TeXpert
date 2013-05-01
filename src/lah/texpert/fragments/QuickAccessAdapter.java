@@ -1,5 +1,6 @@
 package lah.texpert.fragments;
 
+import lah.texpert.LaTeXStringBuilder.DocumentStatListener;
 import android.content.Context;
 import android.text.TextUtils.TruncateAt;
 import android.view.LayoutInflater;
@@ -22,18 +23,23 @@ import android.widget.TextView;
  * @author L.A.H.
  * 
  */
-public class QuickAccessAdapter extends BaseExpandableListAdapter {
+public class QuickAccessAdapter extends BaseExpandableListAdapter implements DocumentStatListener {
 
 	static final String[] access_categories = { "Outline", "External", "Command", "Label" };
 
-	private static final String[][] insertion_items = { { "\u00B6", "\u00A2", "\u00A7" }, { "test.png" },
-			{ "\\begin{}\n\\end{}\n", "\\section", "\\lambda" }, {} };
+	static final int CATEGORY_OUTLINE = 0, CATEGORY_EXTERNAL = 1, CATEGORY_COMMAND = 2, CATEGORY_LABELS = 3;
+
+	private static final String[][] insertion_items = { {}, {}, {}, {} };
 
 	static final String pilcrow = "\u00B6", cent = "\u00A2", section = "\u00A7";
+
+	private String[] commands;
 
 	int current_expanding_group = -1;
 
 	private final LayoutInflater inflater;
+
+	private String[] sections;
 
 	public QuickAccessAdapter(Context context) {
 		inflater = LayoutInflater.from(context);
@@ -41,6 +47,8 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter {
 
 	@Override
 	public String getChild(int groupPosition, int childPosition) {
+		if (groupPosition == 2)
+			return commands == null ? null : commands[childPosition];
 		return insertion_items[groupPosition][childPosition];
 	}
 
@@ -51,6 +59,8 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter {
 
 	@Override
 	public int getChildrenCount(int groupPosition) {
+		if (groupPosition == 2)
+			return commands == null ? 0 : commands.length;
 		return insertion_items[groupPosition].length;
 	}
 
@@ -67,7 +77,7 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter {
 
 	@Override
 	public int getGroupCount() {
-		return insertion_items.length;
+		return access_categories.length;
 	}
 
 	@Override
@@ -102,6 +112,31 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter {
 	@Override
 	public boolean isChildSelectable(int groupPosition, int childPosition) {
 		return true;
+	}
+
+	@Override
+	public void updateCommandList(String[] cmds) {
+		commands = cmds;
+		notifyDataSetChanged();
+	}
+
+	@Override
+	public void updateExternalResourceList(String[] externals) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void updateLabelList(String[] labels) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void updateSectionList(String[] sects) {
+		// TODO Auto-generated method stub
+		sections = sects;
+		notifyDataSetChanged();
 	}
 
 }

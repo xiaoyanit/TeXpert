@@ -49,6 +49,10 @@
         android:title="@string/action_edit">
         <menu>
             <item
+                android:id="@+id/action_undo"
+                android:icon="@drawable/ic_action_undo"
+                android:title="@string/action_undo"/>
+            <item
                 android:id="@+id/action_search"
                 android:icon="@drawable/ic_action_search"
                 android:title="@string/action_search"/>

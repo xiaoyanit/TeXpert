@@ -2,6 +2,11 @@ package lah.texpert;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import lah.texpert.indexing.CharIndexer;
 import lah.texpert.indexing.CharsSetIndexer;
@@ -20,15 +25,35 @@ import android.widget.Toast;
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
+	public interface DocumentStatListener {
+
+		void updateCommandList(String[] commands);
+
+		void updateExternalResourceList(String[] externals);
+
+		void updateLabelList(String[] labels);
+
+		void updateSectionList(String[] sections);
+
+	}
+
 	private static CharIndexer[] indexers;
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
+
+	Map<String, Integer> commands;
+
+	Set<String> external_files;
 
 	private File file;
 
 	private LaTeXEditingActivity host_activity;
 
 	private boolean is_modified;
+
+	Map<String, Integer> sections;
+
+	private DocumentStatListener stat_listener;
 
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
@@ -59,6 +84,60 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			}
 		}
 	}
+	
+	public void cacheStats() {
+		commands = new TreeMap<String, Integer>();
+		int len = length();
+		
+		// TODO use special char indexer to quickly jump to next special symbols
+		int i = 0;
+		while (i < len) {
+			if (charAt(i) == '\\') {
+				int j = endIndexLongestLettersSubsequence(i + 1, len);
+				if (j - i > 1) {
+					String cmd = subString(i, j);
+					Integer freq = commands.get(cmd);
+					commands.put(cmd, freq == null ? 1 : freq + 1);
+				}
+				i = j;
+			} else 
+				i++;
+		}
+		
+		// Select the frequently used commands
+		Iterator<String> cmditer = commands.keySet().iterator();
+		Set<String> freq_used_cmds = new TreeSet<String>();
+		while (cmditer.hasNext()) {
+			String cmd = cmditer.next();
+			if (commands.get(cmd) >= 10)
+				freq_used_cmds.add(cmd);
+		}
+		if (stat_listener != null)
+			stat_listener.updateCommandList(freq_used_cmds.toArray(new String[freq_used_cmds.size()]));
+
+		// sections = new TreeMap<String, Integer>();
+		// external_files = new TreeSet<String>();
+	}
+
+	/**
+	 * Find the end index of the longest subsequence start from pos and match the regular expression [A-Za-z]*
+	 * 
+	 * @param pos
+	 *            Start position
+	 * @param len
+	 *            Length of this object
+	 * @return Return the maximum position {@code k >= pos} where the subsequence {@code [pos..k)} are all letters
+	 */
+	int endIndexLongestLettersSubsequence(int pos, int len) {
+		while (pos < len) {
+			char c = charAt(pos);
+			if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
+				pos++;
+			else
+				break;
+		}
+		return pos;
+	}
 
 	public File getFile() {
 		return file;
@@ -76,19 +155,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				return nearest_linefeed < 0 ? len : nearest_linefeed;
 			}
 			// If not, then this span starts with a special character
+
 			if (charAt(position) == '\\') {
-				// Pick up the consecutive letters following backslash to get the command (if this backslash is really
-				// the start of a command)
-				int e = position + 1;
-				while (e < len) {
-					char ce = charAt(e);
-					if (('A' <= ce && ce <= 'Z') || ('a' <= ce && ce <= 'z'))
-						e++;
-					else
-						break;
-				}
-				// If the following char is not letter, this is automatically `position + 1`
-				return e;
+				// TODO Make sure that this is not escaped
+				return endIndexLongestLettersSubsequence(position + 1, len);
 			}
 			return position + 1;
 		}
@@ -160,6 +230,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return super.getSpanStart(what);
 	}
 
+	boolean isLetter(char c) {
+		return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
+	}
+
 	public boolean isModified() {
 		return is_modified;
 	}
@@ -225,6 +299,17 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					Toast.LENGTH_SHORT).show();
 			e.printStackTrace(System.out);
 		}
+	}
+
+	public void setDocumentStatListener(DocumentStatListener listener) {
+		stat_listener = listener;
+	}
+
+	private String subString(int s, int j) {
+		char[] data = new char[j - s];
+		for (int k = s; k < j; k++)
+			data[k - s] = charAt(k);
+		return new String(data);
 	}
 
 }

@@ -336,6 +336,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			} else
 				showToast(R.string.info_no_pdf_to_open);
 			return true;
+		case R.id.action_undo:
 		case R.id.action_search:
 		case R.id.action_format:
 		case R.id.action_clean:
@@ -364,7 +365,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		if (file == null || !file.exists())
 			return;
 		// Notify user
-		showToast("Open " + file.getAbsolutePath());
+		showToast("Open " + file.getName());
 		// Switch to progress bar view
 		state_switcher.showNext();
 		// Read and style the file in background thread
@@ -379,6 +380,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private void setCurrentDocument(LaTeXStringBuilder document) {
 		current_document = document;
 		editor_fragment.setDocument(current_document);
+		current_document.setDocumentStatListener(editor_fragment.getCommandListListener());
+		current_document.cacheStats();
 		updateFileInfo();
 	}
 

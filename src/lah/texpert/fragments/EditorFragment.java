@@ -2,6 +2,7 @@ package lah.texpert.fragments;
 
 import lah.texpert.LaTeXEditingActivity;
 import lah.texpert.LaTeXStringBuilder;
+import lah.texpert.LaTeXStringBuilder.DocumentStatListener;
 import lah.texpert.R;
 import lah.texpert.SettingsActivity;
 import android.content.SharedPreferences;
@@ -39,12 +40,18 @@ public class EditorFragment extends Fragment {
 		return fragment;
 	}
 
+	private QuickAccessAdapter adapter;
+
 	private EditText document_textview;
 
 	private ExpandableListView quick_access_listview;
 
 	public EditorFragment() {
 		// Required empty public constructor
+	}
+
+	public DocumentStatListener getCommandListListener() {
+		return adapter;
 	}
 
 	@Override
@@ -80,7 +87,7 @@ public class EditorFragment extends Fragment {
 
 		// Prepare quick access area
 		quick_access_listview = (ExpandableListView) view.findViewById(R.id.quick_insertion_items_listview);
-		final QuickAccessAdapter adapter = new QuickAccessAdapter(activity);
+		adapter = new QuickAccessAdapter(activity);
 		quick_access_listview.setAdapter(adapter);
 		quick_access_listview.setOnChildClickListener(new OnChildClickListener() {
 
