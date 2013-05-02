@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">TeXpert</string>
+    <string name="title_activity_latex_editing">TeXpert</string>
+    <string name="title_activity_settings">設定</string>
+    <string name="hello_blank_fragment">空白の断片化</string>
+
+    <!-- Actions, menu labels -->
+    <string name="action_file">ファイル</string>
+    <string name="action_new">新規</string>
+    <string name="action_open">開く</string>
+    <string name="action_save">保存</string>
+    <string name="action_compile_pdflatex">pdfLaTeX</string>
+    <string name="action_compile_bibtex">BibTeX</string>
+    <string name="action_clean">クリーン</string>
+    <string name="action_edit">編集</string>
+    <string name="action_search">検索</string>
+    <string name="action_format">フォーマット</string>
+    <string name="action_settings">設定</string>
+    <string name="action_quit">閉じる</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_toggle_quick_access">クイックアクセスの切換え</string>
+
+    <!-- Error messages -->
+    <string name="message_cannot_send_texportal">文書をコンパイルできません: TeXポータルがインストールされていません！</string>
+    <string name="message_cannot_save_document">文書を保存できません！</string>
+    <string name="message_cannot_open_document">文書を開けません！</string>
+    <string name="message_unimplemented_feature">この機能はまだ実装されていません！</string>
+
+    <!-- Information messages -->
+    <string name="reading_in_progress">読込み中 &#8230;</string>
+
+    <!-- Settings -->
+    <string name="pref_header_editor">編集中</string>
+    <string name="pref_header_compilation">コンパイル中</string>
+    <string name="pref_title_font_size">フォントサイズ</string>
+    <string name="pref_title_font_family">フォントファミリー</string>
+    <string name="pref_title_autosave_before_compile">コンパイル前に自動保存</string>
+
+    <string-array name="font_sizes">
+        <item>18</item>
+        <item>20</item>
+        <item>24</item>
+        <item>28</item>
+        <item>30</item>
+        <item>32</item>
+        <item>36</item>
+        <item>40</item>
+    </string-array>
+    <string-array name="font_families">
+        <item>Sans Serif</item>
+        <item>Monospace</item>
+        <item>Serif</item>
+    </string-array>
+
+    <!-- Dialogs titles -->
+    <string name="title_confirm_overwrite">上書きしますか？</string>
+    <string name="title_save_as">名前をつけて保存</string>
+
+</resources>
