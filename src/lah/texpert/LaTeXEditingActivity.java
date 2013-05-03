@@ -137,8 +137,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file";
 
-	// "testlatex.tex"; // "lambda.tex";
-	static final String TEST_FILE = "texbook.tex";
+	// "testlatex.tex"; // "texbook.tex";
+	static final String TEST_FILE = "lambda.tex";
 
 	static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -211,36 +211,18 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	 */
 	private ViewSwitcher state_switcher;
 
-	private void compile(boolean is_bibtex) {
-		Runnable compile_document = is_bibtex ? this.compile_document_bibtex : this.compile_document_pdflatex;
-		if (current_document.getFile() == null) {
-			showSaveAsDialog(compile_document);
-			return;
-		}
+	private boolean compile(boolean is_bibtex) {
+		Runnable compile_document = is_bibtex ? compile_document_bibtex : compile_document_pdflatex;
+		if (current_document.getFile() == null)
+			return showSaveAsDialog(compile_document);
 		if (current_document.isModified()) {
 			if (pref.getBoolean(PREF_AUTOSAVE_BEFORE_COMPILE, false))
 				current_document.save(current_document.getFile(), compile_document);
 			else
-				confirmOverwrite(compile_document);
-		} else {
+				showConfirmOverwriteDialog(compile_document);
+		} else
 			compile_document.run();
-		}
-	}
-
-	private void confirmOverwrite(final Runnable action_after_overwrite) {
-		if (current_document == null)
-			return;
-		if (overwrite_confirm_dialog == null)
-			overwrite_confirm_dialog = new AlertDialog.Builder(this)
-					.setTitle(getString(R.string.title_confirm_overwrite))
-					.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
-
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							current_document.save(current_document.getFile(), action_after_overwrite);
-						}
-					}).setNegativeButton(getString(R.string.action_cancel), null).create();
-		overwrite_confirm_dialog.show();
+		return true;
 	}
 
 	private LaTeXEditingActivity getActivity() {
@@ -298,8 +280,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_new:
-			showNewDocumentDialog();
-			return true;
+			return showNewDocumentDialog();
 		case R.id.action_open:
 			if (file_select_dialog == null)
 				file_select_dialog = new FileDialog(this, new IFileSelectListener() {
@@ -312,19 +293,12 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			file_select_dialog.show();
 			return true;
 		case R.id.action_save:
-			if (current_document.getFile() == null) {
-				// Ask user to select a file to save as
-				showSaveAsDialog(null);
-			} else {
-				confirmOverwrite(null);
-			}
-			return true;
+			// Untitled document --> ask user to select the file to save as
+			return (current_document.getFile() == null ? showSaveAsDialog(null) : showConfirmOverwriteDialog(null));
 		case R.id.action_compile_pdflatex:
-			compile(false);
-			return true;
+			return compile(false);
 		case R.id.action_compile_bibtex:
-			compile(true);
-			return true;
+			return compile(true);
 		case R.id.action_open_pdf:
 			if (pdf_file != null && pdf_file.exists()) {
 				try {
@@ -337,11 +311,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 				showToast(R.string.info_no_pdf_to_open);
 			return true;
 		case R.id.action_undo:
+			return current_document.undoLastEdit();
 		case R.id.action_search:
 		case R.id.action_format:
 		case R.id.action_clean:
-			showToast(R.string.message_unimplemented_feature);
-			return true;
+			return showToast(R.string.message_unimplemented_feature);
 		case R.id.action_settings:
 			startActivity(new Intent(this, SettingsActivity.class));
 			return true;
@@ -385,12 +359,30 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		updateFileInfo();
 	}
 
-	private void showNewDocumentDialog() {
-		// TODO Implement
-		setCurrentDocument(new LaTeXStringBuilder(this, "", null));
+	private boolean showConfirmOverwriteDialog(final Runnable action_after_overwrite) {
+		if (current_document == null)
+			return true;
+		if (overwrite_confirm_dialog == null)
+			overwrite_confirm_dialog = new AlertDialog.Builder(this)
+					.setTitle(getString(R.string.title_confirm_overwrite))
+					.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
+
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							current_document.save(current_document.getFile(), action_after_overwrite);
+						}
+					}).setNegativeButton(getString(R.string.action_cancel), null).create();
+		overwrite_confirm_dialog.show();
+		return true;
 	}
 
-	private void showSaveAsDialog(final Runnable action_after_save) {
+	private boolean showNewDocumentDialog() {
+		// TODO Implement
+		setCurrentDocument(new LaTeXStringBuilder(this, "", null));
+		return true;
+	}
+
+	private boolean showSaveAsDialog(final Runnable action_after_save) {
 		// Ask user to select a file to save as
 		final EditText file_path_field = new EditText(getActivity());
 		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as))
@@ -402,14 +394,17 @@ public class LaTeXEditingActivity extends FragmentActivity {
 						current_document.save(new File(file_path_field.getText().toString()), action_after_save);
 					}
 				}).setNegativeButton(getString(R.string.action_cancel), null).show();
+		return true;
 	}
 
-	private void showToast(int msg_res_id) {
+	private boolean showToast(int msg_res_id) {
 		Toast.makeText(this, getString(msg_res_id), Toast.LENGTH_SHORT).show();
+		return true;
 	}
 
-	private void showToast(String msg) {
+	private boolean showToast(String msg) {
 		Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+		return true;
 	}
 
 	private void updateActionBar() {

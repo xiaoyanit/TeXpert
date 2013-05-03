@@ -3,6 +3,7 @@ package lah.texpert;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -37,11 +38,48 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	}
 
+	static class EditAction {
+
+		String before, after;
+
+		int replace_pos;
+
+		public EditAction(int pos, String bef, String aft) {
+			replace_pos = pos;
+			before = bef;
+			after = aft;
+		}
+
+	}
+
 	private static CharIndexer[] indexers;
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
 
+	private static String substring(CharSequence cseq, int s, int e) {
+		if (s > e)
+			return null;
+		char[] data = new char[e - s];
+		for (int k = s; k < e; k++)
+			data[k - s] = cseq.charAt(k);
+		return new String(data);
+	}
+
+	/**
+	 * Cached computed spans for a text line. This improves efficiency due to the fact that Android will split each text
+	 * line (substring without newline in between) into several displayed lines (substrings of that line that fits the
+	 * width of the containing view); each of which will then be passed to {@link #getSpans(int, int, Class)} for
+	 * formatting.
+	 * 
+	 * TODO Should cache more for better responsiveness?
+	 */
+	private TeXTokenSpan[] cached_line_spans;
+
+	private int cached_line_start, cached_line_end;
+
 	Map<String, Integer> commands;
+
+	LinkedList<EditAction> edit_actions;
 
 	Set<String> external_files;
 
@@ -61,6 +99,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		this.host_activity = activity;
 		this.is_modified = false;
 		this.file = file;
+		edit_actions = new LinkedList<EditAction>();
 
 		// Initialize the indexers
 		if (indexers == null)
@@ -84,26 +123,26 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			}
 		}
 	}
-	
+
 	public void cacheStats() {
 		commands = new TreeMap<String, Integer>();
 		int len = length();
-		
+
 		// TODO use special char indexer to quickly jump to next special symbols
 		int i = 0;
 		while (i < len) {
 			if (charAt(i) == '\\') {
 				int j = endIndexLongestLettersSubsequence(i + 1, len);
 				if (j - i > 1) {
-					String cmd = subString(i, j);
+					String cmd = substring(this, i, j);
 					Integer freq = commands.get(cmd);
 					commands.put(cmd, freq == null ? 1 : freq + 1);
 				}
 				i = j;
-			} else 
+			} else
 				i++;
 		}
-		
+
 		// Select the frequently used commands
 		Iterator<String> cmditer = commands.keySet().iterator();
 		Set<String> freq_used_cmds = new TreeSet<String>();
@@ -166,7 +205,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	}
 
 	/**
-	 * Assumption: [start..end) is a subsequence of a single text line!
+	 * Assumption: [start..end) is a substring of a single text line; in particular, a displayed line.
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
@@ -180,6 +219,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			// If [start..end) is not the first line then set start to first character after the previous new line;
 			// otherwise set it to the beginning of text
 			start = (nlend > 0) ? indexers[NEWLINE].get(nlend - 1) + 1 : 0;
+
+			// If this displayed line is cached, return cached result
+			if (cached_line_spans != null && cached_line_start <= start && end <= cached_line_end)
+				return (T[]) cached_line_spans;
 
 			// Percents in [start..end) are the [pcistart..pciend)^th percent of the whole text
 			int pcistart = indexers[PERCENT].findFirst(start);
@@ -207,7 +250,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int bsend = indexers[SPECIAL].findFirst(comment_start);
 
 			// Now we are ready to produce the result
-			// TODO Cache result for efficiency
 			TeXTokenSpan[] result = new TeXTokenSpan[bsend - bsstart + has_comment];
 			if (has_comment > 0)
 				result[0] = new TeXTokenSpan(this, comment_start, true);
@@ -216,6 +258,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				// TODO Skip consecutive backslashes & annotate if a backslash has escape effect
 				result[bs - bsstart + has_comment] = new TeXTokenSpan(this, pos, false);
 			}
+
+			// Update the cache to prevent re-computation
+			cached_line_spans = result;
+			cached_line_start = start;
+			cached_line_end = end;
 			return (T[]) result;
 		}
 		return super.getSpans(start, end, type);
@@ -261,13 +308,25 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	@Override
 	public LaTeXStringBuilder replace(int start, int end, CharSequence tb, int tbstart, int tbend) {
+		return replace(start, end, tb, tbstart, tbend, true);
+	}
+
+	private LaTeXStringBuilder replace(int start, int end, CharSequence tb, int tbstart, int tbend,
+			boolean save_action_for_undo) {
 		// Update the indexers and then invoke superclass's method
+		if (save_action_for_undo) {
+			// Kick out long-performed actions
+			if (edit_actions.size() == 256)
+				edit_actions.removeLast();
+			edit_actions.push(new EditAction(start, substring(this, start, end), substring(tb, tbstart, tbend)));
+		}
 		for (int i = 0; i < indexers.length; i++)
 			indexers[i].replace(this, start, end, tb, tbstart, tbend);
 		super.replace(start, end, tb, tbstart, tbend);
 		if (host_activity != null)
 			host_activity.notifyDocumentStateChanged();
 		is_modified = true;
+		cached_line_spans = null; // Invalidate cache after replacement
 		return this;
 	}
 
@@ -305,11 +364,16 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		stat_listener = listener;
 	}
 
-	private String subString(int s, int j) {
-		char[] data = new char[j - s];
-		for (int k = s; k < j; k++)
-			data[k - s] = charAt(k);
-		return new String(data);
+	public boolean undoLastEdit() {
+		if (!edit_actions.isEmpty()) {
+			EditAction last_action = edit_actions.pop();
+			int pos = last_action.replace_pos;
+			String bef = last_action.before;
+			String aft = last_action.after;
+			// Must not save this replacement; otherwise, we cannot make a next undo
+			replace(pos, pos + aft.length(), bef, 0, bef.length(), false);
+		}
+		return true;
 	}
 
 }
