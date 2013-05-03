@@ -114,8 +114,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
 					break;
 				case SPECIAL:
-					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '_', '^', '~', '%',
-							'*', '(', ')', '[', ']');
+					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&');
+					// '#', '_', '^', '~', '%', '*', '(', ')', '[', ']');
 					break;
 				}
 			} else {

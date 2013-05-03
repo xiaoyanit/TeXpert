@@ -33,7 +33,7 @@ import android.widget.ImageButton;
  */
 public class EditorFragment extends Fragment {
 
-	private static final String[] special_symbols = { "\\", "$", "{}", "[]", "^", "_", "()", "%", "&", "#" };
+	private static final String[] special_symbols = { "\\", "$", "{", "}", "[", "]", "^", "_", "(", ")", "%", "&", "#" };
 
 	public static EditorFragment newInstance() {
 		EditorFragment fragment = new EditorFragment();

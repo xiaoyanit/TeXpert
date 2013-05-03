@@ -17,7 +17,9 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name="lah.texpert.LaTeXEditingActivity"
-            android:label="@string/title_activity_latex_editing" >
+            android:configChanges="orientation|screenSize"
+            android:label="@string/title_activity_latex_editing"
+            android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

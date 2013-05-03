@@ -59,13 +59,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		public Fragment getItem(int position) {
 			switch (position) {
 			case 0:
-				if (editor_fragment == null)
-					editor_fragment = EditorFragment.newInstance();
 				return editor_fragment;
 			case 1:
 			default:
-				if (log_fragment == null)
-					log_fragment = LogViewFragment.newInstance();
 				return log_fragment;
 			}
 		}
@@ -240,6 +236,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		setContentView(R.layout.activity_latex_editing);
 
 		// Setup the main pager
+		editor_fragment = EditorFragment.newInstance();
+		log_fragment = LogViewFragment.newInstance();
 		main_pager_adapter = new EditorLogPagerAdapter(getSupportFragmentManager());
 		main_pager = (ViewPager) findViewById(R.id.editor_log_pager);
 		main_pager.setAdapter(main_pager_adapter);
