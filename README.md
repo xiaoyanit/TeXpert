@@ -15,16 +15,18 @@ The target of TeXpert is for _tablets_ like Nexus 7:
  * reasonably big screen for document editing
  * modern Android (4.2+)
  
-Phone is not supported. I comtemplate the following key features:
+Phone is not supported. I contemplate the following key features:
 
 1. [ ] Efficient input: _complementing_, *not replacing*, useful existing tools
    like [SwiftKey][1]
  * [x] shortcut to insert commonly used TeX characters such as `{`, `}`
- * [ ] shortcut to insert frequently-used and user-defined commands via 
+ * [x] shortcut to insert frequently-used and user-defined commands via 
    `\newcommand` (assuming that if the user defines a command, he/she wants to 
    use it frequently in the document)
- * [ ] labels
+ * [ ] shortcut to labels
 1. [ ] Easy navigation
+ * [x] Link to document sections
+ * [ ] Link to beamer frame
 1. [ ] Smart correction suggestion
  * `Begin align` --> `\begin{align}`
  * `right arrow` --> `\rightarrow`
@@ -32,18 +34,20 @@ Phone is not supported. I comtemplate the following key features:
  * [x] load log file
  * [x] open associated PDF
  * [x] annotate generated log
- * [ ] link log to source
+ * [ ] link log line to source
 1. [x] Basic syntax highlighting: __NO__ consideration for 
  * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
  * `verbatim` environment
  * complicated context-free grammar styling (e.g. math formulas in `$$ ... $$`)
-> TeX as a programming language is Turing-complete, having **NO** grammar
-> in the first place due to macro expansion.
+> Being a Turing-complete macro expansion programming language, TeX actually 
+> has **NO** grammar in the first place! Sometimes ago, I have tried to look
+> for parsing part in TeX-parser but apparently, no one ever produces such program.
 1. [ ] Document reorganization (inspired by Eclipse's refactoring features) such as
  * [ ] move `\newcommand` to preamble
  * [ ] rename defined command (in a context-sensitive way)
- * [ ] format the source code (e.g. separate displayed math, `\begin`, `\end`,
-   `\item`, line comments to new line)
+ * [ ] format the source code
+       E.g. separate displayed math, `\begin`, `\end`, `\item`, or 
+       line comments to new line.
  * [ ] convert `$$ ... $$` to the recommended `\[ ... \]`
  * [ ] textually align the array-kind environment
 

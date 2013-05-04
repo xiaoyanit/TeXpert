@@ -25,11 +25,11 @@ import android.widget.TextView;
  */
 public class QuickAccessAdapter extends BaseExpandableListAdapter implements DocumentStatListener {
 
-	static final String[] access_categories = { "Outline", "External", "Command", "Label" };
+	static final String[] access_categories = { "Outline", "Command", "Label" };
 
-	static final int CATEGORY_OUTLINE = 0, CATEGORY_EXTERNAL = 1, CATEGORY_COMMAND = 2, CATEGORY_LABELS = 3;
+	static final int CATEGORY_OUTLINE = 0, CATEGORY_COMMAND = 1, CATEGORY_LABELS = 2;
 
-	private static final String[][] insertion_items = { {}, {}, {}, {} };
+	private static final String[][] insertion_items = { {}, {}, {} };
 
 	static final String SYM_PILCROW = "\u00B6", SYM_CENT = "\u00A2", SYM_SECTION = "\u00A7";
 

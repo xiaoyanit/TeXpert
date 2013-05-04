@@ -54,7 +54,8 @@
         <GridView
             android:id="@+id/special_symbols_grid"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:paddingLeft="20dp" />
     </LinearLayout>
 
 </LinearLayout>
