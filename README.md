@@ -37,8 +37,8 @@ Phone is not supported. I comtemplate the following key features:
  * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
  * `verbatim` environment
  * complicated context-free grammar styling (e.g. math formulas in `$$ ... $$`)
-   (TeX as a programming language is Turing-complete, having **NO** grammar
-   in the first place due to macro expansion)
+> TeX as a programming language is Turing-complete, having **NO** grammar
+> in the first place due to macro expansion.
 1. [ ] Document reorganization (inspired by Eclipse's refactoring features) such as
  * [ ] move `\newcommand` to preamble
  * [ ] rename defined command (in a context-sensitive way)

@@ -31,7 +31,7 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 
 	private static final String[][] insertion_items = { {}, {}, {}, {} };
 
-	static final String pilcrow = "\u00B6", cent = "\u00A2", section = "\u00A7";
+	static final String SYM_PILCROW = "\u00B6", SYM_CENT = "\u00A2", SYM_SECTION = "\u00A7";
 
 	private String[] commands;
 
@@ -41,15 +41,22 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 
 	private String[] sections;
 
+	int[] sections_pos;
+
 	public QuickAccessAdapter(Context context) {
 		inflater = LayoutInflater.from(context);
 	}
 
 	@Override
 	public String getChild(int groupPosition, int childPosition) {
-		if (groupPosition == 2)
+		switch (groupPosition) {
+		case CATEGORY_OUTLINE:
+			return sections == null ? null : SYM_SECTION + sections[childPosition];
+		case CATEGORY_COMMAND:
 			return commands == null ? null : commands[childPosition];
-		return insertion_items[groupPosition][childPosition];
+		default:
+			return insertion_items[groupPosition][childPosition];
+		}
 	}
 
 	@Override
@@ -59,9 +66,14 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 
 	@Override
 	public int getChildrenCount(int groupPosition) {
-		if (groupPosition == 2)
+		switch (groupPosition) {
+		case CATEGORY_OUTLINE:
+			return sections == null ? 0 : sections.length;
+		case CATEGORY_COMMAND:
 			return commands == null ? 0 : commands.length;
-		return insertion_items[groupPosition].length;
+		default:
+			return insertion_items[groupPosition].length;
+		}
 	}
 
 	@Override
@@ -133,9 +145,10 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 	}
 
 	@Override
-	public void updateSectionList(String[] sects) {
+	public void updateSectionList(String[] sects, int[] sects_pos) {
 		// TODO Auto-generated method stub
 		sections = sects;
+		sections_pos = sects_pos;
 		notifyDataSetChanged();
 	}
 

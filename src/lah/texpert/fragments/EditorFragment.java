@@ -93,8 +93,14 @@ public class EditorFragment extends Fragment {
 
 			@Override
 			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-				activity.replaceCurrentSelection(adapter.getChild(groupPosition, childPosition));
-				return true;
+				switch (groupPosition) {
+				case QuickAccessAdapter.CATEGORY_OUTLINE:
+					document_textview.bringPointIntoView(adapter.sections_pos[childPosition]);
+					return true;
+				default:
+					activity.replaceCurrentSelection(adapter.getChild(groupPosition, childPosition));
+					return true;
+				}
 			}
 		});
 		quick_access_listview.setOnGroupExpandListener(new OnGroupExpandListener() {

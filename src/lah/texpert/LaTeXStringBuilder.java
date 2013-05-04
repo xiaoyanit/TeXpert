@@ -4,10 +4,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 import lah.texpert.indexing.CharIndexer;
 import lah.texpert.indexing.CharsSetIndexer;
@@ -34,7 +36,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 		void updateLabelList(String[] labels);
 
-		void updateSectionList(String[] sections);
+		void updateSectionList(String[] sections, int[] sections_pos);
 
 	}
 
@@ -89,7 +91,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private boolean is_modified;
 
-	Map<String, Integer> sections;
+	Pattern sectioning = Pattern.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection)");
+
+	List<String> sections;
 
 	private DocumentStatListener stat_listener;
 
@@ -114,8 +118,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
 					break;
 				case SPECIAL:
-					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&');
-					// '#', '_', '^', '~', '%', '*', '(', ')', '[', ']');
+					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '_', '^', '~', '%',
+							'*', '(', ')', '[', ']');
 					break;
 				}
 			} else {
@@ -126,6 +130,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public void cacheStats() {
 		commands = new TreeMap<String, Integer>();
+		sections = new LinkedList<String>();
+		List<Integer> sections_pos = new LinkedList<Integer>();
 		int len = length();
 
 		// TODO use special char indexer to quickly jump to next special symbols
@@ -137,6 +143,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					String cmd = substring(this, i, j);
 					Integer freq = commands.get(cmd);
 					commands.put(cmd, freq == null ? 1 : freq + 1);
+					if (sectioning.matcher(cmd).matches()) {
+						int k = endIndexArgument(j, len);
+						sections.add(substring(this, j + 1, k - 1));
+						sections_pos.add(i);
+					}
 				}
 				i = j;
 			} else
@@ -151,11 +162,44 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			if (commands.get(cmd) >= 10)
 				freq_used_cmds.add(cmd);
 		}
-		if (stat_listener != null)
+		if (stat_listener != null) {
 			stat_listener.updateCommandList(freq_used_cmds.toArray(new String[freq_used_cmds.size()]));
-
-		// sections = new TreeMap<String, Integer>();
+			int[] sect_pos = new int[sections_pos.size()];
+			int t = 0;
+			for (Integer k : sections_pos) {
+				sect_pos[t] = k;
+				t++;
+			}
+			stat_listener.updateSectionList(sections.toArray(new String[sections.size()]), sect_pos);
+		}
 		// external_files = new TreeSet<String>();
+	}
+
+	/**
+	 * Find the index of a LaTeX argument enclosed in curly braces at a position
+	 * 
+	 * @param pos
+	 * @param len
+	 * @return
+	 */
+	private int endIndexArgument(int pos, int len) {
+		char c = charAt(pos);
+		int braces = 1;
+		assert c == '{';
+		pos = pos + 1;
+		while (pos < len && braces > 0) {
+			c = charAt(pos);
+			switch (c) {
+			case '{':
+				braces++;
+				break;
+			case '}':
+				braces--;
+				break;
+			}
+			pos++;
+		}
+		return pos;
 	}
 
 	/**
@@ -211,6 +255,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	@Override
 	public <T> T[] getSpans(int start, int end, Class<T> type) {
 		if (type == CharacterStyle.class) {
+			// If this displayed line is cached, return cached result
+			if (cached_line_spans != null && cached_line_start <= start && end <= cached_line_end)
+				return (T[]) cached_line_spans;
+
 			// First, we extend the range to contain a full line of text
 			int nlend = indexers[NEWLINE].findFirst(end);
 			end = indexers[NEWLINE].get(nlend);
@@ -219,10 +267,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			// If [start..end) is not the first line then set start to first character after the previous new line;
 			// otherwise set it to the beginning of text
 			start = (nlend > 0) ? indexers[NEWLINE].get(nlend - 1) + 1 : 0;
-
-			// If this displayed line is cached, return cached result
-			if (cached_line_spans != null && cached_line_start <= start && end <= cached_line_end)
-				return (T[]) cached_line_spans;
 
 			// Percents in [start..end) are the [pcistart..pciend)^th percent of the whole text
 			int pcistart = indexers[PERCENT].findFirst(start);
