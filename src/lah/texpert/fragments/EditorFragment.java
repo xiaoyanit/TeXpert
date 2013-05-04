@@ -80,6 +80,8 @@ public class EditorFragment extends Fragment {
 
 		// Prepare document editing area
 		document_textview = (EditText) view.findViewById(R.id.document_area);
+		// Force using software layer (disable hardware rendering)
+		document_textview.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 		document_textview.setEditableFactory(new Editable.Factory() {
 
 			@Override
