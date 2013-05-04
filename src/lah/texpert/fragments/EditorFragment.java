@@ -2,7 +2,7 @@ package lah.texpert.fragments;
 
 import lah.texpert.LaTeXEditingActivity;
 import lah.texpert.LaTeXStringBuilder;
-import lah.texpert.LaTeXStringBuilder.DocumentStatListener;
+import lah.texpert.LaTeXStringBuilder.CommandListener;
 import lah.texpert.R;
 import lah.texpert.SettingsActivity;
 import android.content.SharedPreferences;
@@ -50,7 +50,11 @@ public class EditorFragment extends Fragment {
 		// Required empty public constructor
 	}
 
-	public DocumentStatListener getCommandListListener() {
+	public void bringPointIntoView(int position) {
+		document_textview.bringPointIntoView(position);
+	}
+
+	public CommandListener getCommandListListener() {
 		return adapter;
 	}
 
@@ -93,14 +97,14 @@ public class EditorFragment extends Fragment {
 
 			@Override
 			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-				switch (groupPosition) {
-				case QuickAccessAdapter.CATEGORY_OUTLINE:
-					document_textview.bringPointIntoView(adapter.sections_pos[childPosition]);
-					return true;
-				default:
-					activity.replaceCurrentSelection(adapter.getChild(groupPosition, childPosition));
-					return true;
-				}
+				// switch (groupPosition) {
+				// case QuickAccessAdapter.CATEGORY_OUTLINE:
+				// document_textview.bringPointIntoView(adapter.sections_pos[childPosition]);
+				// return true;
+				// default:
+				activity.replaceCurrentSelection(adapter.getChild(groupPosition, childPosition));
+				return true;
+				// }
 			}
 		});
 		quick_access_listview.setOnGroupExpandListener(new OnGroupExpandListener() {

@@ -28,35 +28,12 @@ import android.widget.Toast;
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
-	public interface DocumentStatListener {
-
-		void updateCommandList(String[] commands);
-
-		void updateExternalResourceList(String[] externals);
-
-		void updateLabelList(String[] labels);
-
-		void updateSectionList(String[] sections, int[] sections_pos);
-
-	}
-
-	static class EditAction {
-
-		String before, after;
-
-		int replace_pos;
-
-		public EditAction(int pos, String bef, String aft) {
-			replace_pos = pos;
-			before = bef;
-			after = aft;
-		}
-
-	}
-
 	private static CharIndexer[] indexers;
 
 	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
+
+	static final Pattern sectioning_command_pattern = Pattern
+			.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection)");
 
 	private static String substring(CharSequence cseq, int s, int e) {
 		if (s > e)
@@ -79,11 +56,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private int cached_line_start, cached_line_end;
 
-	Map<String, Integer> commands;
+	private CommandListener command_listener;
 
-	LinkedList<EditAction> edit_actions;
-
-	Set<String> external_files;
+	private LinkedList<EditAction> edit_actions;
 
 	private File file;
 
@@ -91,11 +66,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private boolean is_modified;
 
-	Pattern sectioning = Pattern.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection)");
-
-	List<String> sections;
-
-	private DocumentStatListener stat_listener;
+	private OutlineListener outline_listener;
 
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
@@ -126,53 +97,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				indexers[i].initialize(text);
 			}
 		}
-	}
-
-	public void cacheStats() {
-		commands = new TreeMap<String, Integer>();
-		sections = new LinkedList<String>();
-		List<Integer> sections_pos = new LinkedList<Integer>();
-		int len = length();
-
-		// TODO use special char indexer to quickly jump to next special symbols
-		int i = 0;
-		while (i < len) {
-			if (charAt(i) == '\\') {
-				int j = endIndexLongestLettersSubsequence(i + 1, len);
-				if (j - i > 1) {
-					String cmd = substring(this, i, j);
-					Integer freq = commands.get(cmd);
-					commands.put(cmd, freq == null ? 1 : freq + 1);
-					if (sectioning.matcher(cmd).matches()) {
-						int k = endIndexArgument(j, len);
-						sections.add(substring(this, j + 1, k - 1));
-						sections_pos.add(i);
-					}
-				}
-				i = j;
-			} else
-				i++;
-		}
-
-		// Select the frequently used commands
-		Iterator<String> cmditer = commands.keySet().iterator();
-		Set<String> freq_used_cmds = new TreeSet<String>();
-		while (cmditer.hasNext()) {
-			String cmd = cmditer.next();
-			if (commands.get(cmd) >= 10)
-				freq_used_cmds.add(cmd);
-		}
-		if (stat_listener != null) {
-			stat_listener.updateCommandList(freq_used_cmds.toArray(new String[freq_used_cmds.size()]));
-			int[] sect_pos = new int[sections_pos.size()];
-			int t = 0;
-			for (Integer k : sections_pos) {
-				sect_pos[t] = k;
-				t++;
-			}
-			stat_listener.updateSectionList(sections.toArray(new String[sections.size()]), sect_pos);
-		}
-		// external_files = new TreeSet<String>();
 	}
 
 	/**
@@ -211,7 +135,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	 *            Length of this object
 	 * @return Return the maximum position {@code k >= pos} where the subsequence {@code [pos..k)} are all letters
 	 */
-	int endIndexLongestLettersSubsequence(int pos, int len) {
+	private int endIndexLongestLettersSubsequence(int pos, int len) {
 		while (pos < len) {
 			char c = charAt(pos);
 			if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
@@ -220,6 +144,55 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				break;
 		}
 		return pos;
+	}
+
+	public void generateMetaInfo() {
+		Map<String, Integer> commands = new TreeMap<String, Integer>();
+		List<String> sections = new LinkedList<String>();
+		List<Integer> sections_pos = new LinkedList<Integer>();
+		int len = length();
+
+		// TODO use special char indexer to quickly jump to next special symbols
+		int i = 0;
+		while (i < len) {
+			if (charAt(i) == '\\') {
+				int j = endIndexLongestLettersSubsequence(i + 1, len);
+				if (j - i > 1) {
+					String cmd = substring(this, i, j);
+					Integer freq = commands.get(cmd);
+					commands.put(cmd, freq == null ? 1 : freq + 1);
+					if (sectioning_command_pattern.matcher(cmd).matches()) {
+						int k = endIndexArgument(j, len);
+						sections.add(substring(this, j + 1, k - 1));
+						sections_pos.add(i);
+					}
+				}
+				i = j;
+			} else
+				i++;
+		}
+
+		// Select the frequently used commands
+		Iterator<String> cmditer = commands.keySet().iterator();
+		Set<String> freq_used_cmds = new TreeSet<String>();
+		while (cmditer.hasNext()) {
+			String cmd = cmditer.next();
+			if (commands.get(cmd) >= 10)
+				freq_used_cmds.add(cmd);
+		}
+		if (command_listener != null) {
+			command_listener.onCommandListChanged(freq_used_cmds.toArray(new String[freq_used_cmds.size()]));
+		}
+		if (outline_listener != null) {
+			int[] sect_pos = new int[sections_pos.size()];
+			int t = 0;
+			for (Integer k : sections_pos) {
+				sect_pos[t] = k;
+				t++;
+			}
+			outline_listener.onOutlineChanged(sections.toArray(new String[sections.size()]), sect_pos);
+		}
+		// external_files = new TreeSet<String>();
 	}
 
 	public File getFile() {
@@ -404,8 +377,12 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		}
 	}
 
-	public void setDocumentStatListener(DocumentStatListener listener) {
-		stat_listener = listener;
+	public void setCommandListener(CommandListener listener) {
+		command_listener = listener;
+	}
+
+	public void setOutlineListener(OutlineListener listener) {
+		outline_listener = listener;
 	}
 
 	public boolean undoLastEdit() {
@@ -418,6 +395,32 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			replace(pos, pos + aft.length(), bef, 0, bef.length(), false);
 		}
 		return true;
+	}
+
+	public interface CommandListener {
+
+		void onCommandListChanged(String[] commands);
+
+	}
+
+	static class EditAction {
+
+		String before, after;
+
+		int replace_pos;
+
+		public EditAction(int pos, String bef, String aft) {
+			replace_pos = pos;
+			before = bef;
+			after = aft;
+		}
+
+	}
+
+	public interface OutlineListener {
+
+		void onOutlineChanged(String[] sections, int[] sections_pos);
+
 	}
 
 }

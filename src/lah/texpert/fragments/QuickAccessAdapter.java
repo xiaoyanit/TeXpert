@@ -1,6 +1,6 @@
 package lah.texpert.fragments;
 
-import lah.texpert.LaTeXStringBuilder.DocumentStatListener;
+import lah.texpert.LaTeXStringBuilder.CommandListener;
 import android.content.Context;
 import android.text.TextUtils.TruncateAt;
 import android.view.LayoutInflater;
@@ -23,13 +23,13 @@ import android.widget.TextView;
  * @author L.A.H.
  * 
  */
-public class QuickAccessAdapter extends BaseExpandableListAdapter implements DocumentStatListener {
+public class QuickAccessAdapter extends BaseExpandableListAdapter implements CommandListener {
 
-	static final String[] access_categories = { "Outline", "Command", "Label" };
+	static final String[] access_categories = { "Command", "Label" };
 
-	static final int CATEGORY_OUTLINE = 0, CATEGORY_COMMAND = 1, CATEGORY_LABELS = 2;
+	static final int CATEGORY_COMMAND = 0, CATEGORY_LABELS = 1;
 
-	private static final String[][] insertion_items = { {}, {}, {} };
+	private static final String[][] insertion_items = { {}, {} };
 
 	static final String SYM_PILCROW = "\u00B6", SYM_CENT = "\u00A2", SYM_SECTION = "\u00A7";
 
@@ -39,10 +39,6 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 
 	private final LayoutInflater inflater;
 
-	private String[] sections;
-
-	int[] sections_pos;
-
 	public QuickAccessAdapter(Context context) {
 		inflater = LayoutInflater.from(context);
 	}
@@ -50,8 +46,6 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 	@Override
 	public String getChild(int groupPosition, int childPosition) {
 		switch (groupPosition) {
-		case CATEGORY_OUTLINE:
-			return sections == null ? null : SYM_SECTION + sections[childPosition];
 		case CATEGORY_COMMAND:
 			return commands == null ? null : commands[childPosition];
 		default:
@@ -67,8 +61,6 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 	@Override
 	public int getChildrenCount(int groupPosition) {
 		switch (groupPosition) {
-		case CATEGORY_OUTLINE:
-			return sections == null ? 0 : sections.length;
 		case CATEGORY_COMMAND:
 			return commands == null ? 0 : commands.length;
 		default:
@@ -127,28 +119,8 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Doc
 	}
 
 	@Override
-	public void updateCommandList(String[] cmds) {
+	public void onCommandListChanged(String[] cmds) {
 		commands = cmds;
-		notifyDataSetChanged();
-	}
-
-	@Override
-	public void updateExternalResourceList(String[] externals) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void updateLabelList(String[] labels) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void updateSectionList(String[] sects, int[] sects_pos) {
-		// TODO Auto-generated method stub
-		sections = sects;
-		sections_pos = sects_pos;
 		notifyDataSetChanged();
 	}
 

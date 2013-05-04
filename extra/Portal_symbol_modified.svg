@@ -19,7 +19,7 @@
    enable-background="new 0 0 172 271"
    xml:space="preserve"
    inkscape:version="0.48.2 r9819"
-   sodipodi:docname="Portal_symbol.svg"
+   sodipodi:docname="Portal_symbol_modified.svg"
    inkscape:export-filename="C:\Users\Anhoa.Vu\Dropbox\workspace\TeXpert\extra\Portal_symbol.png"
    inkscape:export-xdpi="21.254612"
    inkscape:export-ydpi="21.254612"><metadata
@@ -40,7 +40,7 @@
    id="namedview2997"
    showgrid="false"
    inkscape:zoom="0.87084871"
-   inkscape:cx="-93.135593"
+   inkscape:cx="-272.27119"
    inkscape:cy="135.5"
    inkscape:window-x="-8"
    inkscape:window-y="-8"
@@ -49,6 +49,6 @@
 <path
    d="m 99.507,29.193 c -6.159,15.085 -15.792,26.698 -19.826,43.906 16.25,-33.522 55.116,-86.437 99.139,-62.316 24.214,13.264 34.828,48.393 36.826,83.562 3.918,68.984 -34.131,152.554 -83.565,168.539 C 100.827,272.991 77.148,247.436 66.934,227.479 35.391,165.854 67.299,64.833 99.507,29.193 z m 35.409,1.415 C 90.17,54.767 54.786,177.775 91.012,231.725 c 9.242,13.766 34.767,28.711 50.987,12.746 -37.363,5.635 -51.54,-31.48 -53.82,-60.9 5.614,26.404 24.913,58.283 55.237,45.32 45.029,-19.252 67.337,-115.891 48.152,-172.787 4.002,24.058 2.783,56.78 -8.498,73.647 15.487,-41.215 1.412,-125.902 -48.154,-99.143 z"
    id="path2995"
-   style="opacity:0.8;fill:#ffffff;fill-opacity:1"
+   style="opacity:1;fill:#ffffff;fill-opacity:1"
    inkscape:connector-curvature="0" />
 </svg>
