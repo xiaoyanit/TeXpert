@@ -42,6 +42,7 @@
     <string name="pref_title_font_size">Font size</string>
     <string name="pref_title_font_family">Font family</string>
     <string name="pref_title_autosave_before_compile">Autosave before compile</string>
+    <string name="pref_title_backup_on_suspend">Backup on suspend</string>
 
     <string-array name="font_sizes">
         <item>18</item>
@@ -62,7 +63,6 @@
     <!-- Dialogs titles -->
     <string name="title_confirm_overwrite">Overwrite?</string>
     <string name="title_save_as">Save as</string>
-    <string name="title_activity_new_document">NewDocumentActivity</string>
     <string name="doc_outline">Outline</string>
 
 </resources>

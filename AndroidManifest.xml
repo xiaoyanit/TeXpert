@@ -42,10 +42,6 @@
         <activity
             android:name="lah.texpert.SettingsActivity"
             android:label="@string/title_activity_settings" />
-        <activity
-            android:name="lah.texpert.NewDocumentActivity"
-            android:label="@string/title_activity_new_document" >
-        </activity>
     </application>
 
 </manifest>

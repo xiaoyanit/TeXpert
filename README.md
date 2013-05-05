@@ -23,18 +23,20 @@ Phone is not supported. I contemplate the following key features:
  * [x] shortcut to insert frequently-used and user-defined commands via 
    `\newcommand` (assuming that if the user defines a command, he/she wants to 
    use it frequently in the document)
- * [ ] shortcut to labels
+ * [ ] shortcut to insert labels, references
+ * [ ] create document from templates
 1. [ ] Easy navigation
  * [x] Link to document sections
  * [ ] Link to beamer frame
 1. [ ] Smart correction suggestion
  * `Begin align` --> `\begin{align}`
  * `right arrow` --> `\rightarrow`
-1. [ ] Button to compile with [TeXPortal][4]
+1. [ ] Integration with [TeXPortal][4]
  * [x] load log file
  * [x] open associated PDF
  * [x] annotate generated log
  * [ ] link log line to source
+ * [x] clean up generated files
 1. [x] Basic syntax highlighting: __NO__ consideration for 
  * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
  * `verbatim` environment

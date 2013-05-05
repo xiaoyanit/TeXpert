@@ -18,7 +18,7 @@
             android:layout_height="match_parent"
             android:visibility="gone" />
 
-        <!-- Editing area -->
+        <!-- Editing area: note that we need to force using software layer i.e. disable hardware rendering -->
 
         <EditText
             android:id="@+id/document_area"
@@ -30,6 +30,7 @@
             android:gravity="top"
             android:hint=""
             android:inputType="textMultiLine|textNoSuggestions"
+            android:layerType="software"
             android:saveEnabled="false"
             android:scrollbars="vertical" />
     </LinearLayout>

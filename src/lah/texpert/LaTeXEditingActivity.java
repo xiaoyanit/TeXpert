@@ -2,6 +2,7 @@ package lah.texpert;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilenameFilter;
 
 import lah.texpert.fragments.EditorFragment;
 import lah.texpert.fragments.LogViewFragment;
@@ -28,6 +29,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
+import android.util.SparseBooleanArray;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
@@ -51,7 +53,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	static final String DEBUG_FILE = "lambda.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
-			PREF_LAST_OPEN_FILE = "last_open_file";
+			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
 
 	static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
@@ -118,6 +120,14 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private SharedPreferences pref;
 
+	private final Runnable start_new_document_activity = new Runnable() {
+
+		@Override
+		public void run() {
+			setCurrentDocument(new LaTeXStringBuilder(LaTeXEditingActivity.this, "", null));
+		}
+	};
+
 	/**
 	 * This switcher is to be shown during reading phase so as to disable 'swiping' action in pager
 	 * 
@@ -129,7 +139,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private boolean compile(boolean is_bibtex) {
 		Runnable compile_document = is_bibtex ? compile_document_bibtex : compile_document_pdflatex;
 		if (current_document.getFile() == null)
-			return showSaveAsDialog(compile_document);
+			return showSaveAsDialog(compile_document, null);
 		if (current_document.isModified()) {
 			if (pref.getBoolean(PREF_AUTOSAVE_BEFORE_COMPILE, false))
 				current_document.save(current_document.getFile(), compile_document);
@@ -224,7 +234,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			return true;
 		case R.id.action_save:
 			// Untitled document --> ask user to select the file to save as
-			return (current_document.getFile() == null ? showSaveAsDialog(null) : showConfirmOverwriteDialog(null));
+			return (current_document.getFile() == null ? showSaveAsDialog(null, null)
+					: showConfirmOverwriteDialog(null));
 		case R.id.action_compile_pdflatex:
 			return compile(false);
 		case R.id.action_compile_bibtex:
@@ -244,8 +255,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			return current_document.undoLastEdit();
 		case R.id.action_search:
 		case R.id.action_format:
-		case R.id.action_clean:
 			return showToast(R.string.message_unimplemented_feature);
+		case R.id.action_clean:
+			return showCleanupDialog();
 		case R.id.action_settings:
 			startActivity(new Intent(this, SettingsActivity.class));
 			return true;
@@ -290,6 +302,45 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		updateFileInfo();
 	}
 
+	private boolean showCleanupDialog() {
+		File file = current_document.getFile();
+		if (file != null) {
+			String name = file.getName();
+			final String basename = name.substring(0, name.length() - 4);
+			final File dir = file.getParentFile();
+			final String[] cleanable_files = dir.list(new FilenameFilter() {
+
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.startsWith(basename) && !name.endsWith(".tex") && !name.endsWith(".ltx");
+				}
+			});
+			if (cleanable_files == null || cleanable_files.length == 0)
+				return showToast("No file to clean!");
+			boolean[] clean_suggestion = new boolean[cleanable_files.length];
+			for (int i = 0; i < cleanable_files.length; i++)
+				clean_suggestion[i] = !cleanable_files[i].endsWith("bbl") && !cleanable_files[i].endsWith("pdf");
+			new AlertDialog.Builder(this).setTitle("Remove generated files")
+					.setMultiChoiceItems(cleanable_files, clean_suggestion, null)
+					.setPositiveButton("Clean", new OnClickListener() {
+
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							SparseBooleanArray selected_files = ((AlertDialog) dialog).getListView()
+									.getCheckedItemPositions();
+							int count = 0;
+							for (int i = 0; i < cleanable_files.length; i++) {
+								if (selected_files.get(i) && new File(dir, cleanable_files[i]).delete())
+									count++;
+							}
+							showToast(count + " files deleted!");
+						}
+					}).setNegativeButton("Cancel", null).create().show();
+		} else
+			showToast("No file to clean!");
+		return true;
+	}
+
 	private boolean showConfirmOverwriteDialog(final Runnable action_after_overwrite) {
 		if (current_document == null)
 			return true;
@@ -308,12 +359,18 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	}
 
 	private boolean showNewDocumentDialog() {
-		// TODO Implement
-		setCurrentDocument(new LaTeXStringBuilder(this, "", null));
+		Runnable action = start_new_document_activity;
+		if (current_document.isModified())
+			if (current_document.getFile() == null)
+				showSaveAsDialog(action, action);
+			else
+				showConfirmOverwriteDialog(action);
+		else
+			action.run();
 		return true;
 	}
 
-	private boolean showSaveAsDialog(final Runnable action_after_save) {
+	private boolean showSaveAsDialog(final Runnable action_after_save, final Runnable action_if_cancel) {
 		// Ask user to select a file to save as
 		final EditText file_path_field = new EditText(getActivity());
 		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as))
@@ -324,7 +381,14 @@ public class LaTeXEditingActivity extends FragmentActivity {
 					public void onClick(DialogInterface arg0, int arg1) {
 						current_document.save(new File(file_path_field.getText().toString()), action_after_save);
 					}
-				}).setNegativeButton(getString(R.string.action_cancel), null).show();
+				}).setNegativeButton(getString(R.string.action_cancel), new OnClickListener() {
+
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						if (action_if_cancel != null)
+							action_if_cancel.run();
+					}
+				}).show();
 		return true;
 	}
 
