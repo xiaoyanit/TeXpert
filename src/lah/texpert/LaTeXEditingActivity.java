@@ -55,6 +55,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
 
+	/**
+	 * Template for a new document, having three parameters: document class, author, and auto-generated content
+	 */
+	private static final String TEMPLATE = "\\documentclass{%s}\n\n\\title{}\n\\author{%s}\n\\date{\\today}\n\n\\begin{document}\n\n\\begin{abstract}\n\n\\end{abstract}\n\n\\maketitle\n\n%s\\end{document}\n";
+
 	static final ComponentName TEXPORTAL = new ComponentName("lah.texportal",
 			"lah.texportal.activities.CompileDocumentActivity");
 
@@ -92,6 +97,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	public LaTeXStringBuilder current_document;
 
+	private String[] displayed_document_classes = { "Blank", "Article", "AMS Article", "Beamer" },
+			document_classes = { "", "article", "amsart", "beamer" };
+
 	EditorFragment editor_fragment;
 
 	private FileDialog file_select_dialog;
@@ -120,11 +128,29 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private SharedPreferences pref;
 
-	private final Runnable start_new_document_activity = new Runnable() {
+	private final Runnable show_new_doc_options = new Runnable() {
 
 		@Override
 		public void run() {
-			setCurrentDocument(new LaTeXStringBuilder(LaTeXEditingActivity.this, "", null));
+			new AlertDialog.Builder(LaTeXEditingActivity.this).setTitle("New document")
+					.setSingleChoiceItems(displayed_document_classes, 0, null)
+					.setPositiveButton("Create", new OnClickListener() {
+
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							int cls = ((AlertDialog) dialog).getListView().getCheckedItemPosition();
+							if (cls == 0)
+								setCurrentDocument(new LaTeXStringBuilder(LaTeXEditingActivity.this, "", null));
+							else {
+								String doccls = document_classes[cls];
+								// TODO Cache author & allow for customized templates
+								String author = "";
+								String autogen = "\\section{}\n\n\\section{}\n\n\\section{}\n\n";
+								String newdoc = String.format(TEMPLATE, doccls, author, autogen);
+								setCurrentDocument(new LaTeXStringBuilder(LaTeXEditingActivity.this, newdoc, null));
+							}
+						}
+					}).setNegativeButton("Cancel", null).create().show();
 		}
 	};
 
@@ -254,8 +280,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		case R.id.action_undo:
 			return current_document.undoLastEdit();
 		case R.id.action_search:
+			return showSearchFragment();
 		case R.id.action_format:
-			return showToast(R.string.message_unimplemented_feature);
+			return showFormatFragment();
 		case R.id.action_clean:
 			return showCleanupDialog();
 		case R.id.action_settings:
@@ -358,8 +385,13 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		return true;
 	}
 
+	private boolean showFormatFragment() {
+		// TODO Implement
+		return showToast(R.string.message_unimplemented_feature);
+	}
+
 	private boolean showNewDocumentDialog() {
-		Runnable action = start_new_document_activity;
+		Runnable action = show_new_doc_options;
 		if (current_document.isModified())
 			if (current_document.getFile() == null)
 				showSaveAsDialog(action, action);
@@ -390,6 +422,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 					}
 				}).show();
 		return true;
+	}
+
+	private boolean showSearchFragment() {
+		// TODO Implement
+		return showToast(R.string.message_unimplemented_feature);
 	}
 
 	private boolean showToast(int msg_res_id) {
