@@ -54,6 +54,10 @@ public class EditorFragment extends Fragment {
 		document_textview.bringPointIntoView(position);
 	}
 
+	public void clearFocus() {
+		document_textview.clearFocus();
+	}
+
 	public CommandListener getCommandListListener() {
 		return adapter;
 	}
@@ -154,6 +158,10 @@ public class EditorFragment extends Fragment {
 			document_textview.setTypeface(Typeface.MONOSPACE);
 		else
 			document_textview.setTypeface(Typeface.SERIF);
+	}
+
+	public void requestFocus() {
+		document_textview.requestFocus();
 	}
 
 	public void setDocument(LaTeXStringBuilder document) {

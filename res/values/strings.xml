@@ -24,9 +24,10 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_replace">Replace</string>
     <string name="action_toggle_quick_access">Toggle quick access</string>
+    <string name="search_with_regex">Regular expression</string>
 
     <!-- Hints -->
-    <string name="hint_search_for">Search for</string>
+    <string name="hint_search_for">Pattern to search for</string>
     <string name="hint_replace_with">Replace with</string>
 
     <!-- Error messages -->

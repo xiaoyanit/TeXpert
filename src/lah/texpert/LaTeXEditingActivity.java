@@ -136,30 +136,34 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 		@Override
 		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-			// switch (item.getItemId()) {
-			// case R.id.menu_search:
-			// // shareCurrentItem();
-			// // mode.finish();
-			// return true;
-			// default:
-			// return false;
-			// }
-			return false;
+			switch (item.getItemId()) {
+			case R.id.menu_search:
+				editor_fragment.clearFocus();
+				String search_pattern = search_pattern_edittext.getText().toString();
+				current_document.searchNext(search_pattern);
+				editor_fragment.requestFocus();
+				return true;
+				// case R.id.menu_replace:
+				// return true;
+			case R.id.menu_search_with_regex:
+				item.setChecked(!item.isChecked());
+				return true;
+			default:
+				return false;
+			}
 		}
 
 		@Override
 		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-			// Inflate a menu resource providing context menu items
-			// MenuInflater inflater = mode.getMenuInflater();
-			// inflater.inflate(R.menu.search_replace, menu);
+			mode.getMenuInflater().inflate(R.menu.search, menu);
 			if (search_area == null) {
-				search_area = getLayoutInflater().inflate(R.layout.cab_search_replace, null);
+				search_area = getLayoutInflater().inflate(R.layout.cab_search, null);
+				search_pattern_edittext = (EditText) search_area.findViewById(R.id.search_pattern_edittext);
 			}
 			mode.setCustomView(search_area);
 			return true;
 		}
 
-		// Called when the user exits the action mode
 		@Override
 		public void onDestroyActionMode(ActionMode mode) {
 			search_action_mode = null;
@@ -172,6 +176,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	};
 
 	private View search_area;
+
+	private EditText search_pattern_edittext;
 
 	private final Runnable show_new_doc_options = new Runnable() {
 

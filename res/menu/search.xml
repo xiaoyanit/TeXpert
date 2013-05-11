@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <item
+        android:id="@+id/menu_search"
+        android:icon="@drawable/ic_action_search"
+        android:orderInCategory="100"
+        android:showAsAction="always"
+        android:title="@string/action_settings"/>
+    <item
+        android:id="@+id/menu_search_with_regex"
+        android:checkable="true"
+        android:orderInCategory="100"
+        android:showAsAction="never"
+        android:title="@string/search_with_regex"/>
+    <!-- <item -->
+    <!-- android:id="@+id/menu_replace" -->
+    <!-- android:icon="@drawable/ic_action_replace" -->
+    <!-- android:orderInCategory="100" -->
+    <!-- android:showAsAction="ifRoom" -->
+    <!-- android:title="@string/action_replace"/> -->
+
+</menu>

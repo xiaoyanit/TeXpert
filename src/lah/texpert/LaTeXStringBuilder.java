@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lah.texpert.indexing.CharIndexer;
@@ -375,6 +376,18 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					Toast.LENGTH_SHORT).show();
 			e.printStackTrace(System.out);
 		}
+	}
+
+	public boolean searchNext(String search_pattern) {
+		int sel_start = Selection.getSelectionStart(this);
+		if (0 <= sel_start && sel_start < length()) {
+			Matcher m = Pattern.compile(search_pattern).matcher(this);
+			if (m.find(sel_start)) {
+				Selection.setSelection(this, m.start(), m.end());
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void setCommandListener(CommandListener listener) {
