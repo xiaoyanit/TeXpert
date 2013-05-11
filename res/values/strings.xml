@@ -4,7 +4,6 @@
     <string name="app_name">TeXpert</string>
     <string name="title_activity_latex_editing">TeXpert</string>
     <string name="title_activity_settings">Settings</string>
-    <string name="hello_blank_fragment">Hello blank fragment</string>
 
     <!-- Actions, menu labels -->
     <string name="action_file">File</string>
@@ -23,7 +22,12 @@
     <string name="action_settings">Settings</string>
     <string name="action_quit">Quit</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_replace">Replace</string>
     <string name="action_toggle_quick_access">Toggle quick access</string>
+
+    <!-- Hints -->
+    <string name="hint_search_for">Search for</string>
+    <string name="hint_replace_with">Replace with</string>
 
     <!-- Error messages -->
     <string name="message_cannot_send_texportal">Cannot send document for compilation: TeXPortal is not installed!</string>
@@ -63,6 +67,6 @@
     <!-- Dialogs titles -->
     <string name="title_confirm_overwrite">Overwrite?</string>
     <string name="title_save_as">Save as</string>
-    <string name="doc_outline">Outline</string>
+    <string name="document_outline">Outline</string>
 
 </resources>

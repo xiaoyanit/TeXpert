@@ -41,9 +41,9 @@ Phone is not supported. I contemplate the following key features:
  * ``\catcode`\[char]=[num]`` (cf. [this Wiki page][5])
  * `verbatim` environment
  * complicated context-free grammar styling (e.g. math formulas in `$$ ... $$`)
-> Being a Turing-complete macro expansion programming language, TeX actually 
-> has **NO** grammar in the first place! Sometimes ago, I have tried to look
-> for parsing part in TeX-parser but apparently, no one ever produces such program.
+ > Being a Turing-complete macro expansion programming language, TeX actually 
+ > has **NO** grammar in the first place! Sometimes ago, I have tried to look
+ > for parsing part in TeX source code but (to my surprise) there was none.
 1. [ ] Document reorganization (inspired by Eclipse's refactoring features) such as
  * [ ] move `\newcommand` to preamble
  * [ ] rename defined command (in a context-sensitive way)
@@ -72,7 +72,7 @@ distinguishing factor of Android from other mobile platforms. Examples are
 social media, etc. Unfortunately, this requires significant processing power 
 and thus SwiftKey constantly crashes, especially on long texts. (It seems that 
 whenever it is invoked, it reads the whole input field and update its 
-internal database; resulting in sluggish and noticable delay before the  
+internal database; resulting in sluggish and noticeable delay before the  
 keyboard is shown up.) [Android 4.2][3] has a great improvement in its IMEs. 
 It is much faster than SwiftKey and also has support for [Swype][2] gesture 
 typing.

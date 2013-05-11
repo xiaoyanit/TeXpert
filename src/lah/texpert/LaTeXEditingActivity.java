@@ -30,8 +30,10 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.util.SparseBooleanArray;
+import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -97,8 +99,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	public LaTeXStringBuilder current_document;
 
-	private String[] displayed_document_classes = { "Blank", "Article", "AMS Article", "Beamer" },
-			document_classes = { "", "article", "amsart", "beamer" };
+	private String[] displayed_document_classes = { "Blank", "Article", "AMS Article", "Beamer" }, document_classes = {
+			"", "article", "amsart", "beamer" };
 
 	EditorFragment editor_fragment;
 
@@ -127,6 +129,49 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private File pdf_file;
 
 	private SharedPreferences pref;
+
+	private ActionMode search_action_mode;
+
+	private ActionMode.Callback search_action_mode_callback = new ActionMode.Callback() {
+
+		@Override
+		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+			// switch (item.getItemId()) {
+			// case R.id.menu_search:
+			// // shareCurrentItem();
+			// // mode.finish();
+			// return true;
+			// default:
+			// return false;
+			// }
+			return false;
+		}
+
+		@Override
+		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+			// Inflate a menu resource providing context menu items
+			// MenuInflater inflater = mode.getMenuInflater();
+			// inflater.inflate(R.menu.search_replace, menu);
+			if (search_area == null) {
+				search_area = getLayoutInflater().inflate(R.layout.cab_search_replace, null);
+			}
+			mode.setCustomView(search_area);
+			return true;
+		}
+
+		// Called when the user exits the action mode
+		@Override
+		public void onDestroyActionMode(ActionMode mode) {
+			search_action_mode = null;
+		}
+
+		@Override
+		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+			return false;
+		}
+	};
+
+	private View search_area;
 
 	private final Runnable show_new_doc_options = new Runnable() {
 
@@ -405,9 +450,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private boolean showSaveAsDialog(final Runnable action_after_save, final Runnable action_if_cancel) {
 		// Ask user to select a file to save as
 		final EditText file_path_field = new EditText(getActivity());
-		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as))
-		// .setMessage("Please type the path to save file as")
-				.setView(file_path_field).setPositiveButton(getString(R.string.action_save), new OnClickListener() {
+		new AlertDialog.Builder(getActivity()).setTitle(getString(R.string.title_save_as)).setView(file_path_field)
+				.setPositiveButton(getString(R.string.action_save), new OnClickListener() {
 
 					@Override
 					public void onClick(DialogInterface arg0, int arg1) {
@@ -425,8 +469,11 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	}
 
 	private boolean showSearchFragment() {
-		// TODO Implement
-		return showToast(R.string.message_unimplemented_feature);
+		// editor_fragment.showSearchFragment();
+		if (search_action_mode != null)
+			return true;
+		search_action_mode = getActivity().startActionMode(search_action_mode_callback);
+		return true;
 	}
 
 	private boolean showToast(int msg_res_id) {

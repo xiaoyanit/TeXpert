@@ -20,7 +20,8 @@
             android:name="lah.texpert.LaTeXEditingActivity"
             android:configChanges="orientation|screenSize"
             android:label="@string/title_activity_latex_editing"
-            android:screenOrientation="portrait" >
+            android:screenOrientation="portrait"
+            android:uiOptions="splitActionBarWhenNarrow" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
