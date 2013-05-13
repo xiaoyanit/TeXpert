@@ -18,6 +18,7 @@ import lah.texpert.indexing.SingleCharIndexer;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.style.CharacterStyle;
+import android.widget.EditText;
 import android.widget.Toast;
 
 /**
@@ -68,6 +69,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	private boolean is_modified;
 
 	private OutlineListener outline_listener;
+
+	private EditText view;
 
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
@@ -378,14 +381,18 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		}
 	}
 
-	public boolean searchNext(String search_pattern) {
-		int sel_start = Selection.getSelectionStart(this);
-		if (0 <= sel_start && sel_start < length()) {
-			Matcher m = Pattern.compile(search_pattern).matcher(this);
-			if (m.find(sel_start)) {
-				Selection.setSelection(this, m.start(), m.end());
-				return true;
-			}
+	public boolean search(String search_pattern, boolean regex) {
+		int search_start_loc = Selection.getSelectionEnd(this);
+		if (search_start_loc < 0 || search_start_loc >= length())
+			search_start_loc = 0;
+		Matcher m = Pattern.compile(search_pattern, regex ? 0 : Pattern.LITERAL).matcher(this);
+		if (m.find(search_start_loc)) {
+			if (view != null)
+				view.clearFocus();
+			Selection.setSelection(this, m.start(), m.end());
+			if (view != null)
+				view.requestFocus();
+			return true;
 		}
 		return false;
 	}
@@ -396,6 +403,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public void setOutlineListener(OutlineListener listener) {
 		outline_listener = listener;
+	}
+
+	public void setView(EditText document_textview) {
+		view = document_textview;
 	}
 
 	public boolean undoLastEdit() {

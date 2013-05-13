@@ -102,15 +102,15 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private String[] displayed_document_classes = { "Blank", "Article", "AMS Article", "Beamer" }, document_classes = {
 			"", "article", "amsart", "beamer" };
 
-	EditorFragment editor_fragment;
+	private EditorFragment editor_fragment;
 
 	private FileDialog file_select_dialog;
 
-	LogViewFragment log_fragment;
+	private LogViewFragment log_fragment;
 
-	ViewPager main_pager;
+	private ViewPager main_pager;
 
-	EditorLogPagerAdapter main_pager_adapter;
+	private EditorLogPagerAdapter main_pager_adapter;
 
 	private final Runnable notify_open_document_error = new Runnable() {
 
@@ -120,7 +120,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		}
 	};
 
-	OpenDocumentTask open_document_task;
+	private OpenDocumentTask open_document_task;
 
 	private OutlineFragment outline_fragment;
 
@@ -138,10 +138,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
 			switch (item.getItemId()) {
 			case R.id.menu_search:
-				editor_fragment.clearFocus();
 				String search_pattern = search_pattern_edittext.getText().toString();
-				current_document.searchNext(search_pattern);
-				editor_fragment.requestFocus();
+				boolean regex = mode.getMenu().findItem(R.id.menu_search_with_regex).isChecked();
+				current_document.search(search_pattern, regex);
 				return true;
 				// case R.id.menu_replace:
 				// return true;
