@@ -1,6 +1,5 @@
 package lah.texpert.fragments;
 
-import lah.texpert.LaTeXStringBuilder.CommandListener;
 import android.content.Context;
 import android.text.TextUtils.TruncateAt;
 import android.view.LayoutInflater;
@@ -23,7 +22,7 @@ import android.widget.TextView;
  * @author L.A.H.
  * 
  */
-public class QuickAccessAdapter extends BaseExpandableListAdapter implements CommandListener {
+public class QuickAccessAdapter extends BaseExpandableListAdapter {
 
 	static final String[] access_categories = { "Command", "Label" };
 
@@ -33,7 +32,7 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Com
 
 	static final String SYM_PILCROW = "\u00B6", SYM_CENT = "\u00A2", SYM_SECTION = "\u00A7";
 
-	private String[] commands;
+	String[] commands;
 
 	int current_expanding_group = -1;
 
@@ -116,12 +115,6 @@ public class QuickAccessAdapter extends BaseExpandableListAdapter implements Com
 	@Override
 	public boolean isChildSelectable(int groupPosition, int childPosition) {
 		return true;
-	}
-
-	@Override
-	public void onCommandListChanged(String[] cmds) {
-		commands = cmds;
-		notifyDataSetChanged();
 	}
 
 }

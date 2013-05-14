@@ -1,40 +1,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
     <item
-        android:icon="@drawable/ic_action_file"
+        android:id="@+id/action_pdflatex"
+        android:icon="@drawable/ic_action_portal"
+        android:orderInCategory="100"
         android:showAsAction="always"
-        android:title="@string/action_file">
-        <menu>
-            <item
-                android:id="@+id/action_new"
-                android:icon="@drawable/ic_action_new"
-                android:title="@string/action_new"/>
-            <item
-                android:id="@+id/action_open"
-                android:icon="@drawable/ic_action_open"
-                android:title="@string/action_open"/>
-            <item
-                android:id="@+id/action_save"
-                android:icon="@drawable/ic_action_save"
-                android:title="@string/action_save"/>
-            <item
-                android:id="@+id/action_compile_pdflatex"
-                android:icon="@drawable/ic_action_portal"
-                android:title="@string/action_compile_pdflatex"/>
-            <item
-                android:id="@+id/action_compile_bibtex"
-                android:icon="@drawable/ic_action_portal"
-                android:title="@string/action_compile_bibtex"/>
-            <item
-                android:id="@+id/action_open_pdf"
-                android:icon="@drawable/ic_action_openpdf"
-                android:title="@string/action_open_pdf"/>
-            <item
-                android:id="@+id/action_clean"
-                android:icon="@drawable/ic_action_delete"
-                android:title="@string/action_clean"/>
-        </menu>
-    </item>
+        android:title="@string/action_pdflatex"/>
+    <item
+        android:id="@+id/action_open_pdf"
+        android:icon="@drawable/ic_action_openpdf"
+        android:orderInCategory="100"
+        android:showAsAction="always"
+        android:title="@string/action_open_pdf"/>
     <item
         android:icon="@drawable/ic_action_edit"
         android:orderInCategory="100"
@@ -56,16 +33,43 @@
         </menu>
     </item>
     <item
+        android:icon="@drawable/ic_action_file"
+        android:showAsAction="ifRoom"
+        android:title="@string/action_file">
+        <menu>
+            <item
+                android:id="@+id/action_new"
+                android:icon="@drawable/ic_action_new"
+                android:title="@string/action_new"/>
+            <item
+                android:id="@+id/action_open"
+                android:icon="@drawable/ic_action_open"
+                android:title="@string/action_open"/>
+            <item
+                android:id="@+id/action_save"
+                android:icon="@drawable/ic_action_save"
+                android:title="@string/action_save"/>
+            <item
+                android:id="@+id/action_bibtex"
+                android:icon="@drawable/ic_action_portal"
+                android:title="@string/action_bibtex"/>
+            <item
+                android:id="@+id/action_clean"
+                android:icon="@drawable/ic_action_delete"
+                android:title="@string/action_clean"/>
+        </menu>
+    </item>
+    <item
         android:id="@+id/action_settings"
         android:icon="@drawable/ic_action_settings"
         android:orderInCategory="100"
-        android:showAsAction="always"
+        android:showAsAction="ifRoom"
         android:title="@string/action_settings"/>
     <item
         android:id="@+id/action_quit"
         android:icon="@drawable/ic_action_quit"
         android:orderInCategory="100"
-        android:showAsAction="always"
+        android:showAsAction="ifRoom"
         android:title="@string/action_quit"/>
 
 </menu>

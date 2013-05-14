@@ -42,8 +42,6 @@ import android.widget.ViewSwitcher;
 /**
  * Main activity to edit the LaTeX source code
  * 
- * TODO Fix crashes when swiping to other fragment right after load (but have not fully load document)
- * 
  * @author L.A.H.
  * 
  */
@@ -132,49 +130,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private ActionMode search_action_mode;
 
-	private ActionMode.Callback search_action_mode_callback = new ActionMode.Callback() {
+	private ActionMode.Callback search_action_mode_callback = new SearchActionModeCallback();
 
-		@Override
-		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-			switch (item.getItemId()) {
-			case R.id.menu_search:
-				String search_pattern = search_pattern_edittext.getText().toString();
-				boolean regex = mode.getMenu().findItem(R.id.menu_search_with_regex).isChecked();
-				current_document.search(search_pattern, regex);
-				return true;
-				// case R.id.menu_replace:
-				// return true;
-			case R.id.menu_search_with_regex:
-				item.setChecked(!item.isChecked());
-				return true;
-			default:
-				return false;
-			}
-		}
-
-		@Override
-		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-			mode.getMenuInflater().inflate(R.menu.search, menu);
-			if (search_area == null) {
-				search_area = getLayoutInflater().inflate(R.layout.cab_search, null);
-				search_pattern_edittext = (EditText) search_area.findViewById(R.id.search_pattern_edittext);
-			}
-			mode.setCustomView(search_area);
-			return true;
-		}
-
-		@Override
-		public void onDestroyActionMode(ActionMode mode) {
-			search_action_mode = null;
-		}
-
-		@Override
-		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-			return false;
-		}
-	};
-
-	private View search_area;
+	private View search_area;;
 
 	private EditText search_pattern_edittext;
 
@@ -312,9 +270,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			// Untitled document --> ask user to select the file to save as
 			return (current_document.getFile() == null ? showSaveAsDialog(null, null)
 					: showConfirmOverwriteDialog(null));
-		case R.id.action_compile_pdflatex:
+		case R.id.action_pdflatex:
 			return compile(false);
-		case R.id.action_compile_bibtex:
+		case R.id.action_bibtex:
 			return compile(true);
 		case R.id.action_open_pdf:
 			if (pdf_file != null && pdf_file.exists()) {
@@ -373,9 +331,8 @@ public class LaTeXEditingActivity extends FragmentActivity {
 	private void setCurrentDocument(LaTeXStringBuilder document) {
 		current_document = document;
 		editor_fragment.setDocument(current_document);
-		current_document.setCommandListener(editor_fragment.getCommandListListener());
-		current_document.setOutlineListener(outline_fragment.getOutlineListener());
-		current_document.generateMetaInfo();
+		current_document.setCommandListener(editor_fragment);
+		current_document.setOutlineListener(outline_fragment);
 		updateFileInfo();
 	}
 
@@ -606,6 +563,48 @@ public class LaTeXEditingActivity extends FragmentActivity {
 			super(context, 0);
 		}
 
+	}
+
+	class SearchActionModeCallback implements ActionMode.Callback {
+
+		@Override
+		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+			switch (item.getItemId()) {
+			case R.id.menu_search:
+				String search_pattern = search_pattern_edittext.getText().toString();
+				boolean regex = mode.getMenu().findItem(R.id.menu_search_with_regex).isChecked();
+				current_document.search(search_pattern, regex);
+				return true;
+				// case R.id.menu_replace:
+				// return true;
+			case R.id.menu_search_with_regex:
+				item.setChecked(!item.isChecked());
+				return true;
+			default:
+				return false;
+			}
+		}
+
+		@Override
+		public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+			mode.getMenuInflater().inflate(R.menu.search, menu);
+			if (search_area == null) {
+				search_area = getLayoutInflater().inflate(R.layout.cab_search, null);
+				search_pattern_edittext = (EditText) search_area.findViewById(R.id.search_pattern_edittext);
+			}
+			mode.setCustomView(search_area);
+			return true;
+		}
+
+		@Override
+		public void onDestroyActionMode(ActionMode mode) {
+			search_action_mode = null;
+		}
+
+		@Override
+		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+			return false;
+		}
 	}
 
 }

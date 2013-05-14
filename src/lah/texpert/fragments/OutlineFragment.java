@@ -1,9 +1,11 @@
 package lah.texpert.fragments;
 
+import lah.texpert.LaTeXEditingActivity;
 import lah.texpert.LaTeXStringBuilder;
-import lah.texpert.LaTeXStringBuilder.OutlineListener;
+import lah.texpert.LaTeXStringBuilder.Section;
 import lah.texpert.R;
 import android.content.Context;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -20,26 +22,21 @@ import android.widget.ListView;
  * @author L.A.H.
  * 
  */
-public class OutlineFragment extends Fragment {
+public class OutlineFragment extends Fragment implements LaTeXStringBuilder.OutlineListener {
 
 	public static OutlineFragment newInstance(EditorFragment editing_fragment) {
 		OutlineFragment fragment = new OutlineFragment();
-		fragment.editor_fragment = editing_fragment;
 		return fragment;
 	}
 
 	private OutlineAdapter adapter;
 
-	private EditorFragment editor_fragment;
-
 	private ListView outline_listview;
+
+	Section[] sections;
 
 	public OutlineFragment() {
 		// Required empty public constructor
-	}
-
-	public OutlineListener getOutlineListener() {
-		return adapter;
 	}
 
 	@Override
@@ -52,18 +49,22 @@ public class OutlineFragment extends Fragment {
 		outline_listview.setOnItemClickListener(new OnItemClickListener() {
 
 			@Override
-			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-				editor_fragment.bringPointIntoView(adapter.sections_pos[arg2]);
+			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+				((LaTeXEditingActivity) getActivity()).current_document.setCursor(adapter.getItem(position)
+						.getTextPosition());
 			}
 		});
 		return view;
 	}
 
-	class OutlineAdapter extends ArrayAdapter<String> implements LaTeXStringBuilder.OutlineListener {
+	@Override
+	public void onHiddenChanged(boolean hidden) {
+		super.onHiddenChanged(hidden);
+		if (hidden) {
+		}
+	}
 
-		String[] sections;
-
-		int[] sections_pos;
+	class OutlineAdapter extends ArrayAdapter<Section> {
 
 		public OutlineAdapter(Context context) {
 			super(context, android.R.layout.simple_list_item_1);
@@ -75,15 +76,31 @@ public class OutlineFragment extends Fragment {
 		}
 
 		@Override
-		public String getItem(int position) {
+		public Section getItem(int position) {
 			return sections == null ? null : sections[position];
 		}
 
+	}
+
+	@Override
+	public void onOutlineChanged(Section[] sections) {
+		this.sections = sections;
+		adapter.notifyDataSetChanged();
+	}
+
+	/**
+	 * Task to refresh the document outline in back ground
+	 */
+	class ReloadOutlineTask extends AsyncTask<Void, Void, Section[]> {
+
 		@Override
-		public void onOutlineChanged(String[] sections, int[] sections_pos) {
-			this.sections = sections;
-			this.sections_pos = sections_pos;
-			notifyDataSetChanged();
+		protected Section[] doInBackground(Void... params) {
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Section[] result) {
+			sections = result;
 		}
 
 	}

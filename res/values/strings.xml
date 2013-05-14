@@ -12,8 +12,8 @@
     <string name="action_save">Save</string>
     <string name="action_clean">Clean</string>
     <string name="action_external">External</string>
-    <string name="action_compile_pdflatex">pdfLaTeX</string>
-    <string name="action_compile_bibtex">BibTeX</string>
+    <string name="action_pdflatex">pdfLaTeX</string>
+    <string name="action_bibtex">BibTeX</string>
     <string name="action_open_pdf">Open PDF</string>
     <string name="action_edit">Edit</string>
     <string name="action_undo">Undo</string>

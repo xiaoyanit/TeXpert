@@ -70,6 +70,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private OutlineListener outline_listener;
 
+	private Section[] sections;
+
 	private EditText view;
 
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
@@ -93,8 +95,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
 					break;
 				case SPECIAL:
-					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '#', '_', '^', '~', '%',
-							'*', '(', ')', '[', ']');
+					// '~', '#', '*', '(', ')', '[', ']'
+					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '_', '^', '%');
 					break;
 				}
 			} else {
@@ -112,8 +114,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	 */
 	private int endIndexArgument(int pos, int len) {
 		char c = charAt(pos);
+		if (c != '{')
+			return pos - 1;
 		int braces = 1;
-		assert c == '{';
 		pos = pos + 1;
 		while (pos < len && braces > 0) {
 			c = charAt(pos);
@@ -150,13 +153,12 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return pos;
 	}
 
-	public void generateMetaInfo() {
+	private void generateMetaInfo() {
 		Map<String, Integer> commands = new TreeMap<String, Integer>();
-		List<String> sections = new LinkedList<String>();
-		List<Integer> sections_pos = new LinkedList<Integer>();
+		List<Section> sections = new LinkedList<Section>();
 		int len = length();
 
-		// TODO use special char indexer to quickly jump to next special symbols
+		// TODO Use special char indexer to quickly jump to next special symbols
 		int i = 0;
 		while (i < len) {
 			if (charAt(i) == '\\') {
@@ -167,8 +169,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					commands.put(cmd, freq == null ? 1 : freq + 1);
 					if (sectioning_command_pattern.matcher(cmd).matches()) {
 						int k = endIndexArgument(j, len);
-						sections.add(substring(this, j + 1, k - 1));
-						sections_pos.add(i);
+						// texbook does not use \subsection in LaTeX way
+						if (k > j) {
+							String title = substring(this, j + 1, k - 1);
+							sections.add(new Section(title, i));
+						}
 					}
 				}
 				i = j;
@@ -184,23 +189,33 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			if (commands.get(cmd) >= 10)
 				freq_used_cmds.add(cmd);
 		}
-		if (command_listener != null) {
+		if (command_listener != null)
 			command_listener.onCommandListChanged(freq_used_cmds.toArray(new String[freq_used_cmds.size()]));
-		}
-		if (outline_listener != null) {
-			int[] sect_pos = new int[sections_pos.size()];
-			int t = 0;
-			for (Integer k : sections_pos) {
-				sect_pos[t] = k;
-				t++;
-			}
-			outline_listener.onOutlineChanged(sections.toArray(new String[sections.size()]), sect_pos);
-		}
+		if (outline_listener != null)
+			outline_listener.onOutlineChanged(sections.toArray(new Section[sections.size()]));
 		// external_files = new TreeSet<String>();
 	}
 
 	public File getFile() {
 		return file;
+	}
+
+	public String[] getFrequentlyUsedCommands() {
+		// TODO Implement
+		return null;
+	}
+
+	public String[] getNewCommands() {
+		// TODO Implement
+		return null;
+	}
+
+	public Section[] getSections() {
+		// TODO Implement
+		if (is_modified) {
+			generateMetaInfo();
+		}
+		return sections;
 	}
 
 	@Override
@@ -387,11 +402,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			search_start_loc = 0;
 		Matcher m = Pattern.compile(search_pattern, regex ? 0 : Pattern.LITERAL).matcher(this);
 		if (m.find(search_start_loc)) {
-			if (view != null)
-				view.clearFocus();
-			Selection.setSelection(this, m.start(), m.end());
-			if (view != null)
-				view.requestFocus();
+			setSelection(m.start(), m.end());
 			return true;
 		}
 		return false;
@@ -401,8 +412,20 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		command_listener = listener;
 	}
 
+	public void setCursor(int position) {
+		Selection.setSelection(this, position);
+	}
+
 	public void setOutlineListener(OutlineListener listener) {
 		outline_listener = listener;
+	}
+
+	public void setSelection(int start, int end) {
+		if (view != null)
+			view.clearFocus();
+		Selection.setSelection(this, start, end);
+		if (view != null)
+			view.requestFocus();
 	}
 
 	public void setView(EditText document_textview) {
@@ -443,8 +466,35 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public interface OutlineListener {
 
-		void onOutlineChanged(String[] sections, int[] sections_pos);
+		void onOutlineChanged(Section[] sections);
 
+	}
+
+	public static class Section {
+
+		int position;
+
+		String title;
+
+		SectionType type;
+
+		public Section(String title, int position) {
+			this.title = title;
+			this.position = position;
+		}
+
+		public int getTextPosition() {
+			return position;
+		}
+
+		@Override
+		public String toString() {
+			return title;
+		}
+	}
+
+	public enum SectionType {
+		CHAPTER, PART, SECTION, SUBSECTION, SUBSUBSECTION, SUBSUBSUBSECTION
 	}
 
 }

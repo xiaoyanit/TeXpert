@@ -11,8 +11,8 @@
     <string name="action_new">新規</string>
     <string name="action_open">開く</string>
     <string name="action_save">保存</string>
-    <string name="action_compile_pdflatex">pdfLaTeX</string>
-    <string name="action_compile_bibtex">BibTeX</string>
+    <string name="action_pdflatex">pdfLaTeX</string>
+    <string name="action_bibtex">BibTeX</string>
     <string name="action_clean">クリーン</string>
     <string name="action_edit">編集</string>
     <string name="action_search">検索</string>

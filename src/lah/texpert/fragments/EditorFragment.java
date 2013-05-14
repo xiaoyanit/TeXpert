@@ -31,7 +31,7 @@ import android.widget.ImageButton;
  * @author L.A.H.
  * 
  */
-public class EditorFragment extends Fragment {
+public class EditorFragment extends Fragment implements CommandListener {
 
 	private static final String[] special_symbols = { "\\", "$", "{", "}", "[", "]", "^", "_", "(", ")", "%", "&", "#" };
 
@@ -46,16 +46,14 @@ public class EditorFragment extends Fragment {
 
 	private ExpandableListView quick_access_listview;
 
+	@Override
+	public void onCommandListChanged(String[] cmds) {
+		adapter.commands = cmds;
+		adapter.notifyDataSetChanged();
+	}
+
 	public EditorFragment() {
 		// Required empty public constructor
-	}
-
-	public void bringPointIntoView(int position) {
-		document_textview.bringPointIntoView(position);
-	}
-
-	public CommandListener getCommandListListener() {
-		return adapter;
 	}
 
 	@Override
@@ -97,14 +95,8 @@ public class EditorFragment extends Fragment {
 
 			@Override
 			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-				// switch (groupPosition) {
-				// case QuickAccessAdapter.CATEGORY_OUTLINE:
-				// document_textview.bringPointIntoView(adapter.sections_pos[childPosition]);
-				// return true;
-				// default:
 				activity.replaceCurrentSelection(adapter.getChild(groupPosition, childPosition));
 				return true;
-				// }
 			}
 		});
 		quick_access_listview.setOnGroupExpandListener(new OnGroupExpandListener() {
