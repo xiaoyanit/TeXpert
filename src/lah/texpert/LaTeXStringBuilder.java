@@ -58,8 +58,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private int cached_line_start, cached_line_end;
 
-	private CommandListener command_listener;
-
 	private LinkedList<EditAction> edit_actions;
 
 	private File file;
@@ -67,8 +65,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	private LaTeXEditingActivity host_activity;
 
 	private boolean is_modified;
-
-	private OutlineListener outline_listener;
 
 	private Section[] sections;
 
@@ -189,10 +185,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			if (commands.get(cmd) >= 10)
 				freq_used_cmds.add(cmd);
 		}
-		if (command_listener != null)
-			command_listener.onCommandListChanged(freq_used_cmds.toArray(new String[freq_used_cmds.size()]));
-		if (outline_listener != null)
-			outline_listener.onOutlineChanged(sections.toArray(new Section[sections.size()]));
+		this.sections = sections.toArray(new Section[sections.size()]);
 		// external_files = new TreeSet<String>();
 	}
 
@@ -210,11 +203,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return null;
 	}
 
-	public Section[] getSections() {
-		// TODO Implement
-		if (is_modified) {
+	public Section[] getOutLine() {
+		if (sections == null || is_modified)
 			generateMetaInfo();
-		}
 		return sections;
 	}
 
@@ -408,16 +399,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return false;
 	}
 
-	public void setCommandListener(CommandListener listener) {
-		command_listener = listener;
-	}
-
 	public void setCursor(int position) {
 		Selection.setSelection(this, position);
-	}
-
-	public void setOutlineListener(OutlineListener listener) {
-		outline_listener = listener;
 	}
 
 	public void setSelection(int start, int end) {
@@ -444,12 +427,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return true;
 	}
 
-	public interface CommandListener {
-
-		void onCommandListChanged(String[] commands);
-
-	}
-
 	static class EditAction {
 
 		String before, after;
@@ -461,12 +438,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			before = bef;
 			after = aft;
 		}
-
-	}
-
-	public interface OutlineListener {
-
-		void onOutlineChanged(Section[] sections);
 
 	}
 
@@ -495,6 +466,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public enum SectionType {
 		CHAPTER, PART, SECTION, SUBSECTION, SUBSUBSECTION, SUBSUBSUBSECTION
+	}
+
+	public interface Watcher {
+		void notifyDocumentStateChanged();
 	}
 
 }

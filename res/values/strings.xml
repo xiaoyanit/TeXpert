@@ -68,6 +68,9 @@
     <!-- Dialogs titles -->
     <string name="title_confirm_overwrite">Overwrite?</string>
     <string name="title_save_as">Save as</string>
+
+    <!-- Labels -->
     <string name="document_outline">Outline</string>
+    <string name="insert">Insert</string>
 
 </resources>

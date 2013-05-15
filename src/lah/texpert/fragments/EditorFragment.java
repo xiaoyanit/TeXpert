@@ -2,7 +2,6 @@ package lah.texpert.fragments;
 
 import lah.texpert.LaTeXEditingActivity;
 import lah.texpert.LaTeXStringBuilder;
-import lah.texpert.LaTeXStringBuilder.CommandListener;
 import lah.texpert.R;
 import lah.texpert.SettingsActivity;
 import android.content.SharedPreferences;
@@ -10,6 +9,7 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.text.Editable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,9 +19,6 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
-import android.widget.ExpandableListView;
-import android.widget.ExpandableListView.OnChildClickListener;
-import android.widget.ExpandableListView.OnGroupExpandListener;
 import android.widget.GridView;
 import android.widget.ImageButton;
 
@@ -31,7 +28,7 @@ import android.widget.ImageButton;
  * @author L.A.H.
  * 
  */
-public class EditorFragment extends Fragment implements CommandListener {
+public class EditorFragment extends Fragment {
 
 	private static final String[] special_symbols = { "\\", "$", "{", "}", "[", "]", "^", "_", "(", ")", "%", "&", "#" };
 
@@ -40,17 +37,9 @@ public class EditorFragment extends Fragment implements CommandListener {
 		return fragment;
 	}
 
-	private QuickAccessAdapter adapter;
-
 	private EditText document_textview;
 
-	private ExpandableListView quick_access_listview;
-
-	@Override
-	public void onCommandListChanged(String[] cmds) {
-		adapter.commands = cmds;
-		adapter.notifyDataSetChanged();
-	}
+	private QuickAccessFragment quick_access_fragment;
 
 	public EditorFragment() {
 		// Required empty public constructor
@@ -72,7 +61,7 @@ public class EditorFragment extends Fragment implements CommandListener {
 
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-				activity.replaceCurrentSelection(special_symbols[position]);
+				activity.current_document.replaceSelection(special_symbols[position]);
 			}
 		});
 
@@ -86,28 +75,6 @@ public class EditorFragment extends Fragment implements CommandListener {
 			}
 		});
 		document_textview.setText(activity.current_document);
-
-		// Prepare quick access area
-		quick_access_listview = (ExpandableListView) view.findViewById(R.id.quick_insertion_items_listview);
-		adapter = new QuickAccessAdapter(activity);
-		quick_access_listview.setAdapter(adapter);
-		quick_access_listview.setOnChildClickListener(new OnChildClickListener() {
-
-			@Override
-			public boolean onChildClick(ExpandableListView parent, View v, int groupPosition, int childPosition, long id) {
-				activity.replaceCurrentSelection(adapter.getChild(groupPosition, childPosition));
-				return true;
-			}
-		});
-		quick_access_listview.setOnGroupExpandListener(new OnGroupExpandListener() {
-
-			@Override
-			public void onGroupExpand(int groupPosition) {
-				if (adapter.current_expanding_group >= 0 && adapter.current_expanding_group != groupPosition)
-					quick_access_listview.collapseGroup(adapter.current_expanding_group);
-				adapter.current_expanding_group = groupPosition;
-			}
-		});
 
 		// Prepare button to access navigation/insertion
 		ImageButton quick_access_button = (ImageButton) view.findViewById(R.id.quick_access_button);
@@ -154,10 +121,16 @@ public class EditorFragment extends Fragment implements CommandListener {
 	}
 
 	public void toggleQuickAccess() {
-		if (quick_access_listview.getVisibility() == View.VISIBLE)
-			quick_access_listview.setVisibility(View.GONE);
+		FragmentTransaction trans = getChildFragmentManager().beginTransaction();
+		if (quick_access_fragment == null) {
+			quick_access_fragment = QuickAccessFragment.newInstance();
+			trans.replace(R.id.quick_access_fragment, quick_access_fragment).commit();
+			return;
+		}
+		if (quick_access_fragment.isVisible())
+			trans.hide(quick_access_fragment).commit();
 		else
-			quick_access_listview.setVisibility(View.VISIBLE);
+			trans.show(quick_access_fragment).commit();
 	}
 
 }

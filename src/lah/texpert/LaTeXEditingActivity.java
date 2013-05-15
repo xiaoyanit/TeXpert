@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilenameFilter;
 
+import lah.texpert.LaTeXStringBuilder.Watcher;
 import lah.texpert.fragments.EditorFragment;
 import lah.texpert.fragments.LogViewFragment;
 import lah.texpert.fragments.OutlineFragment;
@@ -45,7 +46,7 @@ import android.widget.ViewSwitcher;
  * @author L.A.H.
  * 
  */
-public class LaTeXEditingActivity extends FragmentActivity {
+public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 
 	static final boolean DEBUG = false;
 
@@ -132,7 +133,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 
 	private ActionMode.Callback search_action_mode_callback = new SearchActionModeCallback();
 
-	private View search_area;;
+	private View search_area;
 
 	private EditText search_pattern_edittext;
 
@@ -188,6 +189,7 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		return this;
 	}
 
+	@Override
 	public void notifyDocumentStateChanged() {
 		updateActionBar();
 		updateFileInfo();
@@ -323,16 +325,9 @@ public class LaTeXEditingActivity extends FragmentActivity {
 		(open_document_task = new OpenDocumentTask()).execute(file);
 	}
 
-	public void replaceCurrentSelection(String text) {
-		if (current_document != null)
-			current_document.replaceSelection(text);
-	}
-
 	private void setCurrentDocument(LaTeXStringBuilder document) {
 		current_document = document;
 		editor_fragment.setDocument(current_document);
-		current_document.setCommandListener(editor_fragment);
-		current_document.setOutlineListener(outline_fragment);
 		updateFileInfo();
 	}
 

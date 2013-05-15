@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".EditorFragment" >
+    tools:context=".fragments.EditorFragment" >
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -12,11 +12,10 @@
 
         <!-- Quick access/navigation -->
 
-        <ExpandableListView
-            android:id="@+id/quick_insertion_items_listview"
-            android:layout_width="150dp"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
+        <FrameLayout
+            android:id="@+id/quick_access_fragment"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent" />
 
         <!-- Editing area: note that we need to force using software layer i.e. disable hardware rendering -->
 
