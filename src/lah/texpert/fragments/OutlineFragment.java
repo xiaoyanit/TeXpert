@@ -28,7 +28,7 @@ public class OutlineFragment extends Fragment {
 		return fragment;
 	}
 
-	private OutlineAdapter adapter;
+	private OutlineAdapter outline_adapter;
 
 	private ListView outline_listview;
 
@@ -45,27 +45,29 @@ public class OutlineFragment extends Fragment {
 		// Inflate the layout for this fragment
 		View view = inflater.inflate(R.layout.fragment_outline, container, false);
 		outline_listview = (ListView) view.findViewById(R.id.document_outline);
-		adapter = new OutlineAdapter(getActivity());
-		outline_listview.setAdapter(adapter);
+		outline_adapter = new OutlineAdapter(getActivity());
+		// outline_listview.setAdapter(outline_adapter);
 		outline_listview.setOnItemClickListener(new OnItemClickListener() {
 
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-				getDocument().setCursor(adapter.getItem(position).getTextPosition());
+				getDocument().setCursor(outline_adapter.getItem(position).getTextPosition());
 			}
 		});
 		return view;
 	}
 
 	@Override
-	public void onHiddenChanged(boolean hidden) {
-		super.onHiddenChanged(hidden);
-		if (!hidden) {
-			adapter.notifyDataSetChanged();
+	public void setUserVisibleHint(boolean isVisibleToUser) {
+		super.setUserVisibleHint(isVisibleToUser);
+		if (isVisibleToUser) {
+			outline_listview.setAdapter(outline_adapter);
+		} else if (outline_listview != null) {
+			outline_listview.setAdapter(null);
 		}
 	}
 
-	class OutlineAdapter extends ArrayAdapter<Section> {
+	public class OutlineAdapter extends ArrayAdapter<Section> {
 
 		public OutlineAdapter(Context context) {
 			super(context, android.R.layout.simple_list_item_1);

@@ -30,4 +30,11 @@
 		<nature>com.android.ide.eclipse.adt.AndroidNature</nature>
 		<nature>org.eclipse.jdt.core.javanature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>LAHIndex</name>
+			<type>2</type>
+			<locationURI>WORKSPACE_LOC/LAHIndex/src</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>

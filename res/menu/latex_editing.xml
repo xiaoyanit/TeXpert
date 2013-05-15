@@ -3,18 +3,18 @@
     <item
         android:id="@+id/action_pdflatex"
         android:icon="@drawable/ic_action_portal"
-        android:orderInCategory="100"
+        android:orderInCategory="1"
         android:showAsAction="always"
         android:title="@string/action_pdflatex"/>
     <item
         android:id="@+id/action_open_pdf"
         android:icon="@drawable/ic_action_openpdf"
-        android:orderInCategory="100"
+        android:orderInCategory="2"
         android:showAsAction="always"
         android:title="@string/action_open_pdf"/>
     <item
         android:icon="@drawable/ic_action_edit"
-        android:orderInCategory="100"
+        android:orderInCategory="3"
         android:showAsAction="always"
         android:title="@string/action_edit">
         <menu>
@@ -39,6 +39,7 @@
     </item>
     <item
         android:icon="@drawable/ic_action_file"
+        android:orderInCategory="4"
         android:showAsAction="ifRoom"
         android:title="@string/action_file">
         <menu>

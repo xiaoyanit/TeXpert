@@ -12,9 +12,9 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import lah.texpert.indexing.CharIndexer;
-import lah.texpert.indexing.CharsSetIndexer;
-import lah.texpert.indexing.SingleCharIndexer;
+import lah.index.CharIndexer;
+import lah.index.CharsSetIndexer;
+import lah.index.SingleCharIndexer;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.style.CharacterStyle;
@@ -32,10 +32,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private static CharIndexer[] indexers;
 
-	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2;
+	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2, BACKSLASH = 3;
 
 	static final Pattern sectioning_command_pattern = Pattern
-			.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection)");
+			.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection|input)");
 
 	private static String substring(CharSequence cseq, int s, int e) {
 		if (s > e)
@@ -66,6 +66,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private boolean is_modified;
 
+	private boolean is_outline_modified;
+
 	private Section[] sections;
 
 	private EditText view;
@@ -80,19 +82,22 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 		// Initialize the indexers
 		if (indexers == null)
-			indexers = new CharIndexer[3];
+			indexers = new CharIndexer[4];
 		for (int i = 0; i < indexers.length; i++) {
 			if (indexers[i] == null) {
 				switch (i) {
 				case PERCENT:
-					indexers[PERCENT] = new SingleCharIndexer(text, '%');
+					indexers[i] = new SingleCharIndexer(text, '%');
 					break;
 				case NEWLINE:
-					indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
+					indexers[i] = new SingleCharIndexer(text, '\n');
 					break;
 				case SPECIAL:
 					// '~', '#', '*', '(', ')', '[', ']'
-					indexers[SPECIAL] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '_', '^', '%');
+					indexers[i] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '_', '^', '%');
+					break;
+				case BACKSLASH:
+					indexers[i] = new SingleCharIndexer(text, '\\');
 					break;
 				}
 			} else {
@@ -154,27 +159,22 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		List<Section> sections = new LinkedList<Section>();
 		int len = length();
 
-		// TODO Use special char indexer to quickly jump to next special symbols
-		int i = 0;
-		while (i < len) {
-			if (charAt(i) == '\\') {
-				int j = endIndexLongestLettersSubsequence(i + 1, len);
-				if (j - i > 1) {
-					String cmd = substring(this, i, j);
-					Integer freq = commands.get(cmd);
-					commands.put(cmd, freq == null ? 1 : freq + 1);
-					if (sectioning_command_pattern.matcher(cmd).matches()) {
-						int k = endIndexArgument(j, len);
-						// texbook does not use \subsection in LaTeX way
-						if (k > j) {
-							String title = substring(this, j + 1, k - 1);
-							sections.add(new Section(title, i));
-						}
+		for (int p = 0; p < indexers[BACKSLASH].size(); p++) {
+			int i = indexers[BACKSLASH].get(p);
+			int j = endIndexLongestLettersSubsequence(i + 1, len);
+			if (j - i > 1) {
+				String cmd = substring(this, i, j);
+				Integer freq = commands.get(cmd);
+				commands.put(cmd, freq == null ? 1 : freq + 1);
+				if (sectioning_command_pattern.matcher(cmd).matches()) {
+					int k = endIndexArgument(j, len);
+					// texbook does not use \subsection in LaTeX way
+					if (k > j) {
+						String title = substring(this, j + 1, k - 1);
+						sections.add(new Section(title, i));
 					}
 				}
-				i = j;
-			} else
-				i++;
+			}
 		}
 
 		// Select the frequently used commands
@@ -186,6 +186,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				freq_used_cmds.add(cmd);
 		}
 		this.sections = sections.toArray(new Section[sections.size()]);
+		is_outline_modified = false;
 		// external_files = new TreeSet<String>();
 	}
 
@@ -197,14 +198,14 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		// TODO Implement
 		return null;
 	}
-
+	
 	public String[] getNewCommands() {
 		// TODO Implement
 		return null;
 	}
 
 	public Section[] getOutLine() {
-		if (sections == null || is_modified)
+		if (sections == null || is_outline_modified)
 			generateMetaInfo();
 		return sections;
 	}
@@ -353,6 +354,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		if (host_activity != null)
 			host_activity.notifyDocumentStateChanged();
 		is_modified = true;
+		is_outline_modified = true;
 		cached_line_spans = null; // Invalidate cache after replacement
 		return this;
 	}

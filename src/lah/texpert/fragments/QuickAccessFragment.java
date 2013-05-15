@@ -12,7 +12,7 @@ import android.widget.BaseExpandableListAdapter;
 import android.widget.TextView;
 
 /**
- * 
+ * Fragment to contain commands for faster insertion
  * 
  * @author L.A.H.
  * 
