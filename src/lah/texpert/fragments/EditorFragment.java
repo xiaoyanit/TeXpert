@@ -37,7 +37,7 @@ public class EditorFragment extends Fragment {
 		return fragment;
 	}
 
-	private EditText document_textview;
+	public EditText document_textview;
 
 	private QuickAccessFragment quick_access_fragment;
 
@@ -82,7 +82,7 @@ public class EditorFragment extends Fragment {
 
 			@Override
 			public void onClick(View arg0) {
-				toggleQuickAccess();
+				// toggleQuickAccess();
 			}
 		});
 

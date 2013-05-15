@@ -48,7 +48,7 @@ import android.widget.ViewSwitcher;
  */
 public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 
-	static final boolean DEBUG = false;
+	static final boolean DEBUG = true;
 
 	// "testlatex.tex"; // "texbook.tex";
 	static final String DEBUG_FILE = "lambda.tex";
@@ -267,6 +267,11 @@ public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 					}
 				}, pref.getString(PREF_LAST_OPEN_FILE, ""));
 			file_select_dialog.show();
+			return true;
+		case R.id.action_wordwrap:
+			boolean do_word_wrap = !item.isChecked(); // toggle check state
+			item.setChecked(do_word_wrap);
+			editor_fragment.document_textview.setHorizontallyScrolling(!do_word_wrap);
 			return true;
 		case R.id.action_save:
 			// Untitled document --> ask user to select the file to save as
@@ -495,7 +500,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 		public float getPageWidth(int position) {
 			switch (position) {
 			case 0:
-				return 0.4f;
+				return 0.5f;
 			case 2:
 				return 0.6f;
 			default:

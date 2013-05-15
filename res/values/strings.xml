@@ -11,7 +11,6 @@
     <string name="action_open">Open</string>
     <string name="action_save">Save</string>
     <string name="action_clean">Clean</string>
-    <string name="action_external">External</string>
     <string name="action_pdflatex">pdfLaTeX</string>
     <string name="action_bibtex">BibTeX</string>
     <string name="action_open_pdf">Open PDF</string>
@@ -19,6 +18,7 @@
     <string name="action_undo">Undo</string>
     <string name="action_search">Search</string>
     <string name="action_format">Format</string>
+    <string name="action_wordwrap">Word wrap</string>
     <string name="action_settings">Settings</string>
     <string name="action_quit">Quit</string>
     <string name="action_cancel">Cancel</string>

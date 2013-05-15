@@ -30,6 +30,11 @@
                 android:id="@+id/action_format"
                 android:icon="@drawable/ic_action_format"
                 android:title="@string/action_format"/>
+            <item
+                android:id="@+id/action_wordwrap"
+                android:checkable="true"
+                android:checked="true"
+                android:title="@string/action_wordwrap"/>
         </menu>
     </item>
     <item
