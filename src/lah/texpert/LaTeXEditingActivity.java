@@ -3,11 +3,13 @@ package lah.texpert;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilenameFilter;
+import java.io.InputStream;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import lah.texpert.LaTeXStringBuilder.Watcher;
-import lah.texpert.fragments.EditorFragment;
-import lah.texpert.fragments.LogViewFragment;
-import lah.texpert.fragments.OutlineFragment;
+import lah.texpert.LaTeXStringBuilder.Section;
+import lah.texpert.LaTeXStringBuilder.DocumentWatcher;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
@@ -19,24 +21,42 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.FileObserver;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.view.ViewPager;
+import android.text.Editable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.TextUtils.TruncateAt;
+import android.text.style.CharacterStyle;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.view.ActionMode;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
+import android.widget.BaseExpandableListAdapter;
 import android.widget.EditText;
+import android.widget.GridView;
+import android.widget.ImageButton;
+import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewSwitcher;
 
@@ -46,7 +66,7 @@ import android.widget.ViewSwitcher;
  * @author L.A.H.
  * 
  */
-public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
+public class LaTeXEditingActivity extends FragmentActivity implements DocumentWatcher {
 
 	static final boolean DEBUG = true;
 
@@ -472,6 +492,120 @@ public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 		updateActionBar();
 	}
 
+	/**
+	 * Fragment for editing LaTeX source code
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public static class EditorFragment extends Fragment {
+
+		private static final String[] special_symbols = { "\\", "$", "{", "}", "[", "]", "^", "_", "(", ")", "%", "&",
+				"#" };
+
+		public static EditorFragment newInstance() {
+			EditorFragment fragment = new EditorFragment();
+			return fragment;
+		}
+
+		public EditText document_textview;
+
+		private QuickAccessFragment quick_access_fragment;
+
+		public EditorFragment() {
+			// Required empty public constructor
+		}
+
+		@Override
+		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+			// Inflate the layout for this fragment
+			View view = inflater.inflate(R.layout.fragment_editor, container, false);
+
+			final LaTeXEditingActivity activity = (LaTeXEditingActivity) getActivity();
+
+			// Prepare the grid of special symbols
+			GridView symbols_grid = (GridView) view.findViewById(R.id.special_symbols_grid);
+			symbols_grid.setNumColumns(special_symbols.length);
+			symbols_grid.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1,
+					special_symbols));
+			symbols_grid.setOnItemClickListener(new OnItemClickListener() {
+
+				@Override
+				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+					activity.current_document.replaceSelection(special_symbols[position]);
+				}
+			});
+
+			// Prepare document editing area
+			document_textview = (EditText) view.findViewById(R.id.document_area);
+			document_textview.setEditableFactory(new Editable.Factory() {
+
+				@Override
+				public Editable newEditable(CharSequence source) {
+					return activity.current_document;
+				}
+			});
+			document_textview.setText(activity.current_document);
+
+			// Prepare button to access navigation/insertion
+			ImageButton quick_access_button = (ImageButton) view.findViewById(R.id.quick_access_button);
+			quick_access_button.setOnClickListener(new View.OnClickListener() {
+
+				@Override
+				public void onClick(View arg0) {
+					// toggleQuickAccess();
+				}
+			});
+
+			return view;
+		}
+
+		@Override
+		public void onResume() {
+			super.onResume();
+			if (document_textview == null)
+				return;
+
+			SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(getActivity());
+
+			// Update the font size
+			String font_size = pref.getString(SettingsActivity.PREF_FONT_SIZE, "18");
+			try {
+				document_textview.setTextSize(Integer.parseInt(font_size));
+			} catch (Exception e) {
+				document_textview.setTextSize(18);
+			}
+
+			// Update the font family
+			String font_family = pref.getString(SettingsActivity.PREF_FONT_FAMILY, "Sans Serif");
+			if (font_family.equals("Sans Serif"))
+				document_textview.setTypeface(Typeface.SANS_SERIF);
+			else if (font_family.equals("Monospace"))
+				document_textview.setTypeface(Typeface.MONOSPACE);
+			else
+				document_textview.setTypeface(Typeface.SERIF);
+		}
+
+		public void setDocument(LaTeXStringBuilder document) {
+			document_textview.setText(document);
+			document.setView(document_textview);
+		}
+
+		public void toggleQuickAccess() {
+			FragmentTransaction trans = getChildFragmentManager().beginTransaction();
+			if (quick_access_fragment == null) {
+				quick_access_fragment = QuickAccessFragment.newInstance();
+				trans.replace(R.id.quick_access_fragment, quick_access_fragment).commit();
+				return;
+			}
+			if (quick_access_fragment.isVisible())
+				trans.hide(quick_access_fragment).commit();
+			else
+				trans.show(quick_access_fragment).commit();
+		}
+
+	}
+
 	public class EditorLogPagerAdapter extends FragmentPagerAdapter {
 
 		public EditorLogPagerAdapter(FragmentManager fm) {
@@ -508,6 +642,134 @@ public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 			}
 		}
 
+	}
+
+	/**
+	 * Fragment for viewing pdfLaTeX generated log file
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public static class LogViewFragment extends Fragment {
+
+		private static final Pattern error_pattern = Pattern.compile("! (.*)"), line_num_pattern = Pattern
+				.compile("((l\\.|line |lines )\\s*(\\d+))[^\\d].*"), warning_pattern = Pattern
+				.compile("(((! )?(La|pdf)TeX)|Package) .*Warning.*:(.*)|(Over|Under)(full \\\\[hv]box .*)");
+
+		private static final ForegroundColorSpan ERROR_STYLE = new ForegroundColorSpan(0xffff0000),
+				WARNING_STYLE = new ForegroundColorSpan(0xff00cc00), LINE_NUM_STYLE = new ForegroundColorSpan(
+						0xff0000cc);
+
+		public static LogViewFragment newInstance() {
+			LogViewFragment fragment = new LogViewFragment();
+			return fragment;
+		}
+
+		/**
+		 * Log file to bind to
+		 */
+		private File log_file;
+
+		private String log_file_name;
+
+		private TextView log_textview;
+
+		/**
+		 * Observers to watch for changes in the source directory
+		 */
+		private FileObserver src_dir_observer;
+
+		public LogViewFragment() {
+			// Required empty public constructor
+		}
+
+		void loadLog() {
+			final byte[] buffer = new byte[(int) log_file.length()];
+			try {
+				InputStream str = new FileInputStream(log_file);
+				str.read(buffer);
+				str.close();
+				String logstr = new String(buffer, 0, buffer.length);
+				final SpannableStringBuilder log_content = new SpannableStringBuilder(logstr);
+				Matcher error_matcher = error_pattern.matcher(logstr);
+				while (error_matcher.find()) {
+					log_content.setSpan(CharacterStyle.wrap(ERROR_STYLE), error_matcher.start(), error_matcher.end(),
+							Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
+				}
+				Matcher warning_matcher = warning_pattern.matcher(logstr);
+				while (warning_matcher.find()) {
+					log_content.setSpan(CharacterStyle.wrap(WARNING_STYLE), warning_matcher.start(),
+							warning_matcher.end(), Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
+				}
+				Matcher line_num_matcher = line_num_pattern.matcher(logstr);
+				while (line_num_matcher.find()) {
+					log_content.setSpan(CharacterStyle.wrap(LINE_NUM_STYLE), line_num_matcher.start(1),
+							line_num_matcher.end(1), 0);
+				}
+				log_textview.post(new Runnable() {
+
+					@Override
+					public void run() {
+						log_textview.setText(log_content);
+					}
+				});
+			} catch (Exception e) {
+				e.printStackTrace(System.out);
+			}
+		}
+
+		@Override
+		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+			// Inflate the layout for this fragment
+			View view = inflater.inflate(R.layout.fragment_log_view, container, false);
+			log_textview = (TextView) view.findViewById(R.id.log_textview);
+			return view;
+		}
+
+		public void startTrackingLogFile(File log_file) {
+			if (log_file == null)
+				return;
+
+			this.log_file = log_file;
+			log_file_name = log_file.getName();
+
+			if (log_file.exists())
+				loadLog();
+			else
+				log_textview.post(new Runnable() {
+
+					@Override
+					public void run() {
+						log_textview.setText("");
+					}
+				});
+
+			// Monitor changes to the the directory
+			if (src_dir_observer != null)
+				src_dir_observer.stopWatching();
+			src_dir_observer = new FileObserver(log_file.getParent(), FileObserver.CLOSE_WRITE) {
+
+				@Override
+				public void onEvent(int event, String path) {
+					// log file is overwritten by external process ==> reload the log
+					if (path != null && log_file_name != null && path.equals(log_file_name))
+						loadLog();
+				}
+			};
+			src_dir_observer.startWatching();
+		}
+
+		public void stopTracking() {
+			if (src_dir_observer != null)
+				src_dir_observer.stopWatching();
+			log_textview.post(new Runnable() {
+
+				@Override
+				public void run() {
+					log_textview.setText("");
+				}
+			});
+		}
 	}
 
 	class OpenDocumentTask extends AsyncTask<File, Void, String> {
@@ -561,6 +823,229 @@ public class LaTeXEditingActivity extends FragmentActivity implements Watcher {
 
 		public OpeningFileBufferAdapter(Context context) {
 			super(context, 0);
+		}
+
+	}
+
+	/**
+	 * Fragment to contain the document outline, used with pager
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public static class OutlineFragment extends Fragment {
+
+		public static OutlineFragment newInstance(EditorFragment editing_fragment) {
+			OutlineFragment fragment = new OutlineFragment();
+			return fragment;
+		}
+
+		private OutlineAdapter outline_adapter;
+
+		private ListView outline_listview;
+
+		public OutlineFragment() {
+			// Required empty public constructor
+		}
+
+		LaTeXStringBuilder getDocument() {
+			return ((LaTeXEditingActivity) getActivity()).current_document;
+		}
+
+		@Override
+		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+			// Inflate the layout for this fragment
+			View view = inflater.inflate(R.layout.fragment_outline, container, false);
+			outline_listview = (ListView) view.findViewById(R.id.document_outline);
+			outline_adapter = new OutlineAdapter(getActivity());
+			// outline_listview.setAdapter(outline_adapter);
+			outline_listview.setOnItemClickListener(new OnItemClickListener() {
+
+				@Override
+				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+					getDocument().setCursor(outline_adapter.getItem(position).getTextPosition());
+				}
+			});
+			return view;
+		}
+
+		@Override
+		public void setUserVisibleHint(boolean isVisibleToUser) {
+			super.setUserVisibleHint(isVisibleToUser);
+			if (isVisibleToUser) {
+				outline_listview.setAdapter(outline_adapter);
+			} else if (outline_listview != null) {
+				outline_listview.setAdapter(null);
+			}
+		}
+
+		public class OutlineAdapter extends ArrayAdapter<Section> {
+
+			public OutlineAdapter(Context context) {
+				super(context, android.R.layout.simple_list_item_1);
+			}
+
+			@Override
+			public int getCount() {
+				List<Section> sections = getDocument().getOutLine();
+				return sections == null ? 0 : sections.size();
+			}
+
+			@Override
+			public Section getItem(int position) {
+				List<Section> sections = getDocument().getOutLine();
+				return sections == null ? null : sections.get(position);
+			}
+
+		}
+
+		/**
+		 * Task to refresh the document outline in back ground
+		 */
+		// class ReloadOutlineTask extends AsyncTask<Void, Void, Section[]> {
+		//
+		// @Override
+		// protected Section[] doInBackground(Void... params) {
+		// return null;
+		// }
+		//
+		// @Override
+		// protected void onPostExecute(Section[] result) {
+		// sections = result;
+		// }
+		//
+		// }
+
+	}
+
+	/**
+	 * Fragment to contain commands for faster insertion
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public static class QuickAccessFragment extends Fragment {
+
+		static final String[] access_categories = { "Command", "Label" };
+
+		public static QuickAccessFragment newInstance() {
+			QuickAccessFragment fragment = new QuickAccessFragment();
+			return fragment;
+		}
+
+		public QuickAccessFragment() {
+			// Required empty public constructor
+		}
+
+		@Override
+		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+			// Inflate the layout for this fragment
+			View view = inflater.inflate(R.layout.fragment_quick_access, container, false);
+			return view;
+		}
+
+		/**
+		 * Adapter containing quickly accessible items such as
+		 * 
+		 * - Frequently used commands
+		 * 
+		 * - Defined labels
+		 * 
+		 * @author L.A.H.
+		 * 
+		 */
+		class QuickAccessAdapter extends BaseExpandableListAdapter {
+
+			static final int CATEGORY_COMMAND = 0, CATEGORY_LABELS = 1;
+
+			static final String SYM_PILCROW = "\u00B6", SYM_CENT = "\u00A2", SYM_SECTION = "\u00A7";
+
+			String[] commands;
+
+			int current_expanding_group = -1;
+
+			private final LayoutInflater inflater;
+
+			public QuickAccessAdapter(Context context) {
+				inflater = LayoutInflater.from(context);
+			}
+
+			@Override
+			public String getChild(int groupPosition, int childPosition) {
+				switch (groupPosition) {
+				case CATEGORY_COMMAND:
+					return commands == null ? null : commands[childPosition];
+				default:
+					// return insertion_items[groupPosition][childPosition];
+					return null;
+				}
+			}
+
+			@Override
+			public long getChildId(int groupPosition, int childPosition) {
+				return childPosition;
+			}
+
+			@Override
+			public int getChildrenCount(int groupPosition) {
+				switch (groupPosition) {
+				case CATEGORY_COMMAND:
+					return commands == null ? 0 : commands.length;
+				default:
+					// return insertion_items[groupPosition].length;
+					return 0;
+				}
+			}
+
+			@Override
+			public View getChildView(int groupPosition, int childPosition, boolean isLastChild, View convertView,
+					ViewGroup parent) {
+				return getTextViewWithText(getChild(groupPosition, childPosition), convertView);
+			}
+
+			@Override
+			public String getGroup(int groupPosition) {
+				return access_categories[groupPosition];
+			}
+
+			@Override
+			public int getGroupCount() {
+				return access_categories.length;
+			}
+
+			@Override
+			public long getGroupId(int groupPosition) {
+				return groupPosition;
+			}
+
+			@Override
+			public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
+				return getTextViewWithText(getGroup(groupPosition), convertView);
+			}
+
+			private View getTextViewWithText(String text, View convertView) {
+				TextView view;
+				if (convertView instanceof TextView) {
+					view = (TextView) convertView;
+				} else {
+					view = (TextView) inflater.inflate(android.R.layout.simple_expandable_list_item_1, null);
+					view.setTextSize(18);
+					view.setSingleLine();
+					view.setEllipsize(TruncateAt.END);
+				}
+				view.setText(text);
+				return view;
+			}
+
+			@Override
+			public boolean hasStableIds() {
+				return false;
+			}
+
+			@Override
+			public boolean isChildSelectable(int groupPosition, int childPosition) {
+				return true;
+			}
 		}
 
 	}

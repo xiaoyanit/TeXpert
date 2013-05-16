@@ -4,7 +4,7 @@
     android:layout_width="150dp"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".fragments.QuickAccessFragment" >
+    tools:context=".LaTeXEditingActivity.QuickAccessFragment" >
 
     <TextView
         style="@android:style/TextAppearance.Large"

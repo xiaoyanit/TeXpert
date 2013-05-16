@@ -17,7 +17,11 @@ import lah.index.CharsSetIndexer;
 import lah.index.SingleCharIndexer;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
+import android.text.TextPaint;
 import android.text.style.CharacterStyle;
+import android.text.style.ClickableSpan;
+import android.text.style.UpdateAppearance;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -68,7 +72,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private boolean is_outline_modified;
 
-	private Section[] sections;
+	private List<Section> sections;
 
 	private EditText view;
 
@@ -156,7 +160,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private void generateMetaInfo() {
 		Map<String, Integer> commands = new TreeMap<String, Integer>();
-		List<Section> sections = new LinkedList<Section>();
+		List<Section> temp_sections = new LinkedList<Section>();
 		int len = length();
 
 		for (int p = 0; p < indexers[BACKSLASH].size(); p++) {
@@ -171,7 +175,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 					// texbook does not use \subsection in LaTeX way
 					if (k > j) {
 						String title = substring(this, j + 1, k - 1);
-						sections.add(new Section(title, i));
+						temp_sections.add(new Section(title, i));
 					}
 				}
 			}
@@ -185,7 +189,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			if (commands.get(cmd) >= 10)
 				freq_used_cmds.add(cmd);
 		}
-		this.sections = sections.toArray(new Section[sections.size()]);
+		sections = temp_sections;
 		is_outline_modified = false;
 		// external_files = new TreeSet<String>();
 	}
@@ -198,13 +202,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		// TODO Implement
 		return null;
 	}
-	
+
 	public String[] getNewCommands() {
 		// TODO Implement
 		return null;
 	}
 
-	public Section[] getOutLine() {
+	public List<Section> getOutLine() {
 		if (sections == null || is_outline_modified)
 			generateMetaInfo();
 		return sections;
@@ -429,6 +433,12 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return true;
 	}
 
+	public interface DocumentWatcher {
+		
+		void notifyDocumentStateChanged();
+		
+	}
+
 	static class EditAction {
 
 		String before, after;
@@ -470,8 +480,92 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		CHAPTER, PART, SECTION, SUBSECTION, SUBSUBSECTION, SUBSUBSUBSECTION
 	}
 
-	public interface Watcher {
-		void notifyDocumentStateChanged();
+	/**
+	 * Extension of {@link ClickableSpan} to hold suggestion texts
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	static class TeXSuggestionSpan extends ClickableSpan {
+
+		@Override
+		public void onClick(View widget) {
+			// TODO Implement
+		}
+
+		// @Override
+		// public void updateDrawState(TextPaint ds) {
+		// super.updateDrawState(ds);
+		// }
+
+	}
+
+	/**
+	 * Extension of {@link CharacterStyle} to style a TeX token
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	static class TeXTokenSpan extends CharacterStyle implements UpdateAppearance, Comparable<TeXTokenSpan> {
+
+		/**
+		 * Colors constants to style document
+		 */
+		static final int COLOR_COMMAND = 0xFF0000FF, COLOR_COMMENT = 0xFFA0A0A0, COLOR_SYMBOLS = 0xFFCC8000,
+				COLOR_FORMULA = 0xFF00CC00;
+
+		static final int FLAG_COMMAND = 0x40000000, FLAG_COMMENT = 0x80000000, FLAG_SYMBOL = 0x10000000;
+
+		/**
+		 * Mask to extract first two MSBs and the remaining 30 lower bits
+		 */
+		static final int MASK_TOKEN_TYPE = 0xC0000000, MASK_POSITION = 0x3FFFFFFF;
+
+		/**
+		 * The first two most-significant-bits represents the token type
+		 */
+		private int position;
+
+		public TeXTokenSpan(CharSequence text, int position, boolean is_comment) {
+			if (is_comment) {
+				this.position = position | FLAG_COMMENT;
+			} else {
+				this.position = position;
+				char c = text.charAt(position);
+				if (c == '\\' && position + 1 < text.length()) {
+					char nc = text.charAt(position + 1);
+					if (('A' <= nc && nc <= 'Z') || ('a' <= nc && nc <= 'z'))
+						this.position |= FLAG_COMMAND;
+				}
+			}
+		}
+
+		@Override
+		public int compareTo(TeXTokenSpan span) {
+			return position - span.position;
+		}
+
+		public int getPosition() {
+			return position & MASK_POSITION;
+		}
+
+		public boolean isComment() {
+			return (position & FLAG_COMMENT) == FLAG_COMMENT;
+		}
+
+		@Override
+		public void updateDrawState(TextPaint ds) {
+			switch (position & MASK_TOKEN_TYPE) {
+			case FLAG_COMMAND:
+				ds.setColor(COLOR_COMMAND);
+				break;
+			case FLAG_COMMENT:
+				ds.setColor(COLOR_COMMENT);
+				break;
+			default:
+				ds.setColor(COLOR_SYMBOLS);
+			}
+		}
 	}
 
 }
