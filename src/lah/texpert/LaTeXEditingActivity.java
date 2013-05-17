@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import lah.texpert.LaTeXStringBuilder.Section;
 import lah.texpert.LaTeXStringBuilder.DocumentWatcher;
+import lah.texpert.LaTeXStringBuilder.Section;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
@@ -68,7 +68,7 @@ import android.widget.ViewSwitcher;
  */
 public class LaTeXEditingActivity extends FragmentActivity implements DocumentWatcher {
 
-	static final boolean DEBUG = true;
+	static final boolean DEBUG = false;
 
 	// "testlatex.tex"; // "texbook.tex";
 	static final String DEBUG_FILE = "lambda.tex";

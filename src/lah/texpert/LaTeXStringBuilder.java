@@ -345,16 +345,23 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private LaTeXStringBuilder replace(int start, int end, CharSequence tb, int tbstart, int tbend,
 			boolean save_action_for_undo) {
-		// Update the indexers and then invoke superclass's method
 		if (save_action_for_undo) {
 			// Kick out long-performed actions
 			if (edit_actions.size() == 256)
 				edit_actions.removeLast();
 			edit_actions.push(new EditAction(start, substring(this, start, end), substring(tb, tbstart, tbend)));
 		}
+
+		// Update the indexers
 		for (int i = 0; i < indexers.length; i++)
 			indexers[i].replace(this, start, end, tb, tbstart, tbend);
+
+		// Invoke superclass's method to update content and notify views
 		super.replace(start, end, tb, tbstart, tbend);
+
+		// Refresh the commands and document outline
+
+		// Notify activity to update action bar, etc.
 		if (host_activity != null)
 			host_activity.notifyDocumentStateChanged();
 		is_modified = true;
@@ -434,9 +441,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	}
 
 	public interface DocumentWatcher {
-		
+
 		void notifyDocumentStateChanged();
-		
+
 	}
 
 	static class EditAction {
