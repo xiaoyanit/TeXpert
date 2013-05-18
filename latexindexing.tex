@@ -1,0 +1,37 @@
+\documentclass{amsart}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+
+\title{Dynamic Indexing of \LaTeX\ documents}
+\author{L.A.H.}
+
+\newcommand{\idx}{\iota}
+
+\begin{document}
+
+\maketitle
+
+In this article, I will discuss an application of indexing technique to index interesting position in \LaTeX\ document, in particular: starting and ending points of
+\begin{enumerate}
+\item Comments
+\item Special symbols such as curly braces
+\item Command (i.e. \emph{control sequences} in \TeX\ terminologies) and some subclass of commands such as sectioning, environments or file inclusion
+\item Starting and ending of formulas
+\end{enumerate}
+
+For simplicity, let us ignore complicated commands such as \texttt{catcode} or verbatim environment in the following discussion.
+
+At first sight, indexing comments and special symbols seems to be easiest of the above since \LaTeX\ comment starts with simply a percentage (\texttt{\%}) character and spans all the way to the end of the line. The problem is that: a special symbols can be \emph{escaped with backslash} (\texttt{\textbackslash}) character and \emph{backslash itself can also be backslash-escaped} as well. Beware that there is a circular dependency here: backslash only functions as escaped characters when it is \emph{not} under line comment block!
+
+In general, one has a rule: if a character is not in comment block and the maximum number of consecutive backslashes right before a character is even then the character is not backslash-escaped.
+
+A solution (to the first three) is to use multiple multilevel indexers such as
+$$\idx_p, \idx_l, \idx_b, \idx_s$$
+which locates all occurrences of \%, linefeed (EOL), potentially\footnote{Meaning: those in comment blocks as well as in normal code.} non-escaped backslashes and other special symbols of interest. Now I have mentioned that index are also  sequences of (increasing) numbers and thus, can be further indexed. We build the comment index for the original sequence by indexing the percentage-index $\idx_p$. Compared to indexing the comment blocks directly from the text, this is much simpler: the decision only depends on the previous character (whether it is a backslash or not) and whether it is escaped (efficiently checked using the $\idx_b$ indexer). The ending of comment block is just the first EOL after the percentage, efficiently obtained with $\idx_l$.
+
+Actual special symbols and control sequences can be likewise indexed by indexing $\idx_b$ and $\idx_s$: the decision is now point-wise: we just have to confirm that the symbol is NOT comment block. Note that when $\idx_b$ is modified, one has to modify its index!
+
+At first sight, the first two dynamic indexers and the last one are easily obtained since the indexing predicate depends only on the position while the third one $\idx_{b}$ is much more complicated since its indexing predicate, say $\alpha_{b}$, depends on a backward range of undetermined length. Here is the catch: $\alpha_{b}(x)$ actually depends on the previous character and $\alpha_{b}(x-1)$. In particular, if the previous character i.e. character at $x-1$ is not a backslash, evidently $\alpha_{b}(x)$ should be true. Otherwise (previous character is a backslash) then $\alpha_{b}(x)$ is the negation of $\alpha_{b}(x - 1)$ which can be checked efficiently if the index data structure admits \emph{efficient membership checking}. Utilizing this view point, the (pseudo) decision region at any point $x$ is just the two points in $[x-1,x+1)$ so when a subsequence $[s..e)$ is replaced, we only need to revalidate the (adjusted) range $[s..e')$ where $e'$ is the first non-backslash after $e$.
+
+\end{document}

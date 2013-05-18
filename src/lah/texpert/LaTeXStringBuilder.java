@@ -354,7 +354,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 		// Update the indexers
 		for (int i = 0; i < indexers.length; i++)
-			indexers[i].replace(this, start, end, tb, tbstart, tbend);
+			indexers[i].beforeSequenceChanged(this, start, end, tb, tbstart, tbend);
 
 		// Invoke superclass's method to update content and notify views
 		super.replace(start, end, tb, tbstart, tbend);
