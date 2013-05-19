@@ -12,8 +12,9 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import lah.index.CharIndexer;
 import lah.index.CharsSetIndexer;
+import lah.index.Indexer;
+import lah.index.NonescapedBackslashIndexer;
 import lah.index.SingleCharIndexer;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
@@ -34,9 +35,9 @@ import android.widget.Toast;
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
-	private static CharIndexer[] indexers;
+	private Indexer<CharSequence>[] indexers;
 
-	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2, BACKSLASH = 3;
+	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2, NON_ESC_BACKSLASH = 3;
 
 	static final Pattern sectioning_command_pattern = Pattern
 			.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection|input)");
@@ -76,6 +77,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private EditText view;
 
+	@SuppressWarnings("unchecked")
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
 
@@ -85,29 +87,34 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		edit_actions = new LinkedList<EditAction>();
 
 		// Initialize the indexers
-		if (indexers == null)
-			indexers = new CharIndexer[4];
-		for (int i = 0; i < indexers.length; i++) {
-			if (indexers[i] == null) {
-				switch (i) {
-				case PERCENT:
-					indexers[i] = new SingleCharIndexer(text, '%');
-					break;
-				case NEWLINE:
-					indexers[i] = new SingleCharIndexer(text, '\n');
-					break;
-				case SPECIAL:
-					// '~', '#', '*', '(', ')', '[', ']'
-					indexers[i] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '_', '^', '%');
-					break;
-				case BACKSLASH:
-					indexers[i] = new SingleCharIndexer(text, '\\');
-					break;
-				}
-			} else {
-				indexers[i].initialize(text);
-			}
-		}
+		// if (indexers == null)
+		indexers = new Indexer[4];
+		indexers[PERCENT] = new SingleCharIndexer(text, '%');
+		indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
+		// '\\', '~', '#', '*', '(', ')', '[', ']'
+		indexers[SPECIAL] = new CharsSetIndexer(text, '{', '}', '$', '&', '_', '^', '%');
+		indexers[NON_ESC_BACKSLASH] = new NonescapedBackslashIndexer(text); // new SingleCharIndexer(text, '\\');
+		// for (int i = 0; i < indexers.length; i++) {
+		// if (indexers[i] == null) {
+		// switch (i) {
+		// case PERCENT:
+		// indexers[i] = new SingleCharIndexer(text, '%');
+		// break;
+		// case NEWLINE:
+		// indexers[i] = new SingleCharIndexer(text, '\n');
+		// break;
+		// case SPECIAL:
+		// // '~', '#', '*', '(', ')', '[', ']'
+		// indexers[i] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '_', '^', '%');
+		// break;
+		// case BACKSLASH:
+		// indexers[i] = new SingleCharIndexer(text, '\\');
+		// break;
+		// }
+		// } else {
+		// indexers[i].initialize(text);
+		// }
+		// }
 	}
 
 	/**
@@ -163,8 +170,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		List<Section> temp_sections = new LinkedList<Section>();
 		int len = length();
 
-		for (int p = 0; p < indexers[BACKSLASH].size(); p++) {
-			int i = indexers[BACKSLASH].get(p);
+		for (int p = 0; p < indexers[NON_ESC_BACKSLASH].size(); p++) {
+			int i = indexers[NON_ESC_BACKSLASH].getValueAt(p);
 			int j = endIndexLongestLettersSubsequence(i + 1, len);
 			if (j - i > 1) {
 				String cmd = substring(this, i, j);
@@ -222,7 +229,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int len = length();
 			// If this span is for a line comment
 			if (ttsp.isComment()) {
-				int nearest_linefeed = indexers[NEWLINE].get(indexers[NEWLINE].findFirst(position));
+				int nearest_linefeed = indexers[NEWLINE].getValueAt(indexers[NEWLINE].findFirst(position));
 				return nearest_linefeed < 0 ? len : nearest_linefeed;
 			}
 			// If not, then this span starts with a special character
@@ -249,12 +256,12 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 			// First, we extend the range to contain a full line of text
 			int nlend = indexers[NEWLINE].findFirst(end);
-			end = indexers[NEWLINE].get(nlend);
+			end = indexers[NEWLINE].getValueAt(nlend);
 			if (end < 0) // no new line after original `end` ==> last line
 				end = length();
 			// If [start..end) is not the first line then set start to first character after the previous new line;
 			// otherwise set it to the beginning of text
-			start = (nlend > 0) ? indexers[NEWLINE].get(nlend - 1) + 1 : 0;
+			start = (nlend > 0) ? indexers[NEWLINE].getValueAt(nlend - 1) + 1 : 0;
 
 			// Percents in [start..end) are the [pcistart..pciend)^th percent of the whole text
 			int pcistart = indexers[PERCENT].findFirst(start);
@@ -263,7 +270,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			// Go through each occurrences and pick up the first non-escaped one
 			int pci_nonesc = pcistart;
 			for (; pci_nonesc < pciend; pci_nonesc++) {
-				int pcpos = indexers[PERCENT].get(pci_nonesc);
+				int pcpos = indexers[PERCENT].getValueAt(pci_nonesc);
 				if (isNonEscaped(pcpos))
 					// Make sure that this is not escaped % to break
 					// TODO Do the same for escaped command as well
@@ -273,20 +280,23 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int has_comment = 0;
 			if (pci_nonesc < pciend) {
 				// We found some non-escaped % on this line
-				comment_start = indexers[PERCENT].get(pci_nonesc);
+				comment_start = indexers[PERCENT].getValueAt(pci_nonesc);
 				has_comment = 1;
 			}
 
 			// Pick up the occurrences of special symbols from [start..comment_start)
-			int bsstart = indexers[SPECIAL].findFirst(start);
-			int bsend = indexers[SPECIAL].findFirst(comment_start);
+//			int bsstart = indexers[SPECIAL].findFirst(start);
+//			int bsend = indexers[SPECIAL].findFirst(comment_start);
+			int bsstart = indexers[NON_ESC_BACKSLASH].findFirst(start);
+			int bsend = indexers[NON_ESC_BACKSLASH].findFirst(comment_start);
 
 			// Now we are ready to produce the result
 			TeXTokenSpan[] result = new TeXTokenSpan[bsend - bsstart + has_comment];
 			if (has_comment > 0)
 				result[0] = new TeXTokenSpan(this, comment_start, true);
 			for (int bs = bsstart; bs < bsend; bs++) {
-				int pos = indexers[SPECIAL].get(bs);
+				// int pos = indexers[SPECIAL].getValueAt(bs);
+				int pos = indexers[NON_ESC_BACKSLASH].getValueAt(bs);
 				// TODO Skip consecutive backslashes & annotate if a backslash has escape effect
 				result[bs - bsstart + has_comment] = new TeXTokenSpan(this, pos, false);
 			}
@@ -352,12 +362,20 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			edit_actions.push(new EditAction(start, substring(this, start, end), substring(tb, tbstart, tbend)));
 		}
 
+		int len_diff = (tbend - tbstart) - (end - start);
+		long[] invals = new long[indexers.length];
+
 		// Update the indexers
 		for (int i = 0; i < indexers.length; i++)
-			indexers[i].beforeSequenceChanged(this, start, end, tb, tbstart, tbend);
+			invals[i] = indexers[i].beforeSequenceChanged(this, start, end);
 
 		// Invoke superclass's method to update content and notify views
 		super.replace(start, end, tb, tbstart, tbend);
+
+		// Update the indexers
+		for (int i = 0; i < indexers.length; i++)
+			indexers[i].afterSequenceChanged(this, invals[i], len_diff);
+		// indexers[i].afterSequenceChanged(this, start, end, start + tbend - tbstart);
 
 		// Refresh the commands and document outline
 
@@ -518,7 +536,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		/**
 		 * Colors constants to style document
 		 */
-		static final int COLOR_COMMAND = 0xFF0000FF, COLOR_COMMENT = 0xFFA0A0A0, COLOR_SYMBOLS = 0xFFCC8000,
+		static final int COLOR_CONTROL_SEQUENCE = 0xFF0000FF, COLOR_COMMENT = 0xFFA0A0A0, COLOR_SYMBOL = 0xFFCC8000,
 				COLOR_FORMULA = 0xFF00CC00;
 
 		static final int FLAG_COMMAND = 0x40000000, FLAG_COMMENT = 0x80000000, FLAG_SYMBOL = 0x10000000;
@@ -564,13 +582,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		public void updateDrawState(TextPaint ds) {
 			switch (position & MASK_TOKEN_TYPE) {
 			case FLAG_COMMAND:
-				ds.setColor(COLOR_COMMAND);
+				ds.setColor(COLOR_CONTROL_SEQUENCE);
 				break;
 			case FLAG_COMMENT:
 				ds.setColor(COLOR_COMMENT);
 				break;
 			default:
-				ds.setColor(COLOR_SYMBOLS);
+				ds.setColor(COLOR_SYMBOL);
 			}
 		}
 	}

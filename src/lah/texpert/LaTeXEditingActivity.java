@@ -70,8 +70,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	static final boolean DEBUG = false;
 
-	// "testlatex.tex"; // "texbook.tex";
-	static final String DEBUG_FILE = "lambda.tex";
+	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
+	static final String DEBUG_FILE = "sample.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -221,6 +221,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		setContentView(R.layout.activity_latex_editing);
 
 		// Setup the main pager
+		current_document = new LaTeXStringBuilder(this, "", null);
 		editor_fragment = EditorFragment.newInstance();
 		outline_fragment = OutlineFragment.newInstance(editor_fragment);
 		log_fragment = LogViewFragment.newInstance();
@@ -245,8 +246,10 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		// Prepare switcher
 		state_switcher = (ViewSwitcher) findViewById(R.id.reading_state_switcher);
 
+		pref = PreferenceManager.getDefaultSharedPreferences(this);
+		// Debug.startMethodTracing("tracereflow.trace");
+
 		// Handling user intent (in case open from file browsing app)
-		current_document = new LaTeXStringBuilder(this, "", null);
 		if (DEBUG) {
 			openDocument(new File(Environment.getExternalStorageDirectory(), DEBUG_FILE));
 		} else {
@@ -260,9 +263,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			}
 		}
 		updateActionBar();
-
-		pref = PreferenceManager.getDefaultSharedPreferences(this);
-		// Debug.startMethodTracing("tracereflow.trace");
 	}
 
 	@Override
@@ -587,8 +587,10 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		}
 
 		public void setDocument(LaTeXStringBuilder document) {
-			document_textview.setText(document);
-			document.setView(document_textview);
+			if (document_textview != null) {
+				document_textview.setText(document);
+				document.setView(document_textview);
+			}
 		}
 
 		public void toggleQuickAccess() {
