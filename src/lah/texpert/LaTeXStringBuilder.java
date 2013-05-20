@@ -12,10 +12,11 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import lah.index.CharsSetIndexer;
 import lah.index.Indexer;
-import lah.index.NonescapedBackslashIndexer;
-import lah.index.SingleCharIndexer;
+import lah.index.latex.CommentIndexer;
+import lah.index.latex.NewlineIndexer;
+import lah.index.latex.NonEscapedBackslashIndexer;
+import lah.index.latex.NonEscapedSpecialCharsIndexer;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.TextPaint;
@@ -35,9 +36,11 @@ import android.widget.Toast;
  */
 public class LaTeXStringBuilder extends SpannableStringBuilder {
 
-	private Indexer<CharSequence>[] indexers;
-
-	static final int PERCENT = 0, NEWLINE = 1, SPECIAL = 2, NON_ESC_BACKSLASH = 3;
+	/**
+	 * Ordering in term of dependency: indexing of line comments and non-escaped special symbols depend on escape
+	 * backslashed and new lines.
+	 */
+	static final int NEWLINE = 0, NON_ESC_BACKSLASH = 1, LINE_COMMENT = 2, NON_ESC_SPECIAL = 3;
 
 	static final Pattern sectioning_command_pattern = Pattern
 			.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection|input)");
@@ -69,6 +72,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private LaTeXEditingActivity host_activity;
 
+	private Indexer<CharSequence>[] indexers;
+
 	private boolean is_modified;
 
 	private boolean is_outline_modified;
@@ -80,41 +85,17 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	@SuppressWarnings("unchecked")
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
-
 		this.host_activity = activity;
 		this.is_modified = false;
 		this.file = file;
 		edit_actions = new LinkedList<EditAction>();
 
 		// Initialize the indexers
-		// if (indexers == null)
-		indexers = new Indexer[4];
-		indexers[PERCENT] = new SingleCharIndexer(text, '%');
-		indexers[NEWLINE] = new SingleCharIndexer(text, '\n');
-		// '\\', '~', '#', '*', '(', ')', '[', ']'
-		indexers[SPECIAL] = new CharsSetIndexer(text, '{', '}', '$', '&', '_', '^', '%');
-		indexers[NON_ESC_BACKSLASH] = new NonescapedBackslashIndexer(text); // new SingleCharIndexer(text, '\\');
-		// for (int i = 0; i < indexers.length; i++) {
-		// if (indexers[i] == null) {
-		// switch (i) {
-		// case PERCENT:
-		// indexers[i] = new SingleCharIndexer(text, '%');
-		// break;
-		// case NEWLINE:
-		// indexers[i] = new SingleCharIndexer(text, '\n');
-		// break;
-		// case SPECIAL:
-		// // '~', '#', '*', '(', ')', '[', ']'
-		// indexers[i] = new CharsSetIndexer(text, '\\', '{', '}', '$', '&', '_', '^', '%');
-		// break;
-		// case BACKSLASH:
-		// indexers[i] = new SingleCharIndexer(text, '\\');
-		// break;
-		// }
-		// } else {
-		// indexers[i].initialize(text);
-		// }
-		// }
+		NewlineIndexer newline_indexer = new NewlineIndexer(text);
+		NonEscapedBackslashIndexer nonescbs_indexer = new NonEscapedBackslashIndexer(text);
+		CommentIndexer comment_indexer = new CommentIndexer(text, newline_indexer, nonescbs_indexer);
+		NonEscapedSpecialCharsIndexer nonescspec_indexer = new NonEscapedSpecialCharsIndexer(text, nonescbs_indexer);
+		indexers = new Indexer[] { newline_indexer, nonescbs_indexer, comment_indexer, nonescspec_indexer };
 	}
 
 	/**
@@ -264,13 +245,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			start = (nlend > 0) ? indexers[NEWLINE].getValueAt(nlend - 1) + 1 : 0;
 
 			// Percents in [start..end) are the [pcistart..pciend)^th percent of the whole text
-			int pcistart = indexers[PERCENT].findFirst(start);
-			int pciend = indexers[PERCENT].findFirst(end);
+			int pcistart = indexers[LINE_COMMENT].findFirst(start);
+			int pciend = indexers[LINE_COMMENT].findFirst(end);
 
 			// Go through each occurrences and pick up the first non-escaped one
 			int pci_nonesc = pcistart;
 			for (; pci_nonesc < pciend; pci_nonesc++) {
-				int pcpos = indexers[PERCENT].getValueAt(pci_nonesc);
+				int pcpos = indexers[LINE_COMMENT].getValueAt(pci_nonesc);
 				if (isNonEscaped(pcpos))
 					// Make sure that this is not escaped % to break
 					// TODO Do the same for escaped command as well
@@ -280,13 +261,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int has_comment = 0;
 			if (pci_nonesc < pciend) {
 				// We found some non-escaped % on this line
-				comment_start = indexers[PERCENT].getValueAt(pci_nonesc);
+				comment_start = indexers[LINE_COMMENT].getValueAt(pci_nonesc);
 				has_comment = 1;
 			}
 
 			// Pick up the occurrences of special symbols from [start..comment_start)
-//			int bsstart = indexers[SPECIAL].findFirst(start);
-//			int bsend = indexers[SPECIAL].findFirst(comment_start);
+			// int bsstart = indexers[SPECIAL].findFirst(start);
+			// int bsend = indexers[SPECIAL].findFirst(comment_start);
 			int bsstart = indexers[NON_ESC_BACKSLASH].findFirst(start);
 			int bsend = indexers[NON_ESC_BACKSLASH].findFirst(comment_start);
 
@@ -339,13 +320,16 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	public boolean isNonEscaped(int position) {
 		// int num_backslash_bef = 0;
 		// Find the position of farthest backslash right before character at position
-		int fbspos = position - 1;
-		while (fbspos >= 0 && charAt(fbspos) == '\\') {
-			// num_backslash_bef++;
-			fbspos--;
-		}
-		// Note: Maximum number of backslash before `position` is `position - fbspos - 1`
-		return ((position - fbspos - 1) & 1) == 0;
+		// int fbspos = position - 1;
+		// while (fbspos >= 0 && charAt(fbspos) == '\\') {
+		// // num_backslash_bef++;
+		// fbspos--;
+		// }
+		// // Note: Maximum number of backslash before `position` is `position - fbspos - 1`
+		// return ((position - fbspos - 1) & 1) == 0;
+		if (position == 0 || charAt(position - 1) != '\\')
+			return true;
+		return !indexers[NON_ESC_BACKSLASH].contain(position - 1);
 	}
 
 	@Override
@@ -363,19 +347,18 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		}
 
 		int len_diff = (tbend - tbstart) - (end - start);
-		long[] invals = new long[indexers.length];
+		long[] affected = new long[indexers.length];
 
-		// Update the indexers
-		for (int i = 0; i < indexers.length; i++)
-			invals[i] = indexers[i].beforeSequenceChanged(this, start, end);
+		// Obtain affected regions for each indexer; need to do this IN REVERSE DEPENDENCY ORDER
+		for (int i = indexers.length - 1; i >= 0; i--)
+			affected[i] = indexers[i].beforeSequenceChanged(this, start, end);
 
 		// Invoke superclass's method to update content and notify views
 		super.replace(start, end, tb, tbstart, tbend);
 
-		// Update the indexers
+		// Update the indexers after the text is replaced IN DEPENDENCY ORDER
 		for (int i = 0; i < indexers.length; i++)
-			indexers[i].afterSequenceChanged(this, invals[i], len_diff);
-		// indexers[i].afterSequenceChanged(this, start, end, start + tbend - tbstart);
+			indexers[i].afterSequenceChanged(this, affected[i], len_diff);
 
 		// Refresh the commands and document outline
 
