@@ -51,7 +51,6 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
-import android.widget.BaseExpandableListAdapter;
 import android.widget.EditText;
 import android.widget.GridView;
 import android.widget.ImageButton;
@@ -72,6 +71,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
 	static final String DEBUG_FILE = "sample.tex";
+
+	private static OutlineAdapter outline_adapter;
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -197,7 +198,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return showSaveAsDialog(compile_document, null);
 		if (current_document.isModified()) {
 			if (pref.getBoolean(PREF_AUTOSAVE_BEFORE_COMPILE, false))
-				current_document.save(current_document.getFile(), compile_document);
+				try {
+					current_document.save(current_document.getFile(), compile_document);
+				} catch (Exception e) {
+					showToast(R.string.message_cannot_save_document);
+					e.printStackTrace(System.out);
+				}
 			else
 				showConfirmOverwriteDialog(compile_document);
 		} else
@@ -207,6 +213,20 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private LaTeXEditingActivity getActivity() {
 		return this;
+	}
+
+	View getTextViewWithText(String text, View convertView) {
+		TextView view;
+		if (convertView instanceof TextView) {
+			view = (TextView) convertView;
+		} else {
+			view = (TextView) getLayoutInflater().inflate(android.R.layout.simple_expandable_list_item_1, null);
+			view.setTextSize(18);
+			view.setSingleLine();
+			view.setEllipsize(TruncateAt.END);
+		}
+		view.setText(text);
+		return view;
 	}
 
 	@Override
@@ -222,6 +242,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 		// Setup the main pager
 		current_document = new LaTeXStringBuilder(this, "", null);
+		outline_adapter = new OutlineAdapter(this);
 		editor_fragment = EditorFragment.newInstance();
 		outline_fragment = OutlineFragment.newInstance(editor_fragment);
 		log_fragment = LogViewFragment.newInstance();
@@ -405,7 +426,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 						@Override
 						public void onClick(DialogInterface dialog, int which) {
-							current_document.save(current_document.getFile(), action_after_overwrite);
+							try {
+								current_document.save(current_document.getFile(), action_after_overwrite);
+							} catch (Exception e) {
+								showToast(R.string.message_cannot_save_document);
+								e.printStackTrace(System.out);
+							}
 						}
 					}).setNegativeButton(getString(R.string.action_cancel), null).create();
 		overwrite_confirm_dialog.show();
@@ -437,7 +463,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 					@Override
 					public void onClick(DialogInterface arg0, int arg1) {
-						current_document.save(new File(file_path_field.getText().toString()), action_after_save);
+						try {
+							current_document.save(new File(file_path_field.getText().toString()), action_after_save);
+						} catch (Exception e) {
+							showToast(R.string.message_cannot_save_document);
+							e.printStackTrace(System.out);
+						}
 					}
 				}).setNegativeButton(getString(R.string.action_cancel), new OnClickListener() {
 
@@ -829,6 +860,30 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	}
 
+	public class OutlineAdapter extends ArrayAdapter<Section> {
+
+		public OutlineAdapter(Context context) {
+			super(context, android.R.layout.simple_list_item_1);
+		}
+
+		@Override
+		public int getCount() {
+			if (current_document == null)
+				return 0;
+			List<Section> sections = current_document.getOutLine();
+			return sections == null ? 0 : sections.size();
+		}
+
+		@Override
+		public Section getItem(int position) {
+			if (current_document == null)
+				return null;
+			List<Section> sections = current_document.getOutLine();
+			return sections == null ? null : sections.get(position);
+		}
+
+	}
+
 	/**
 	 * Fragment to contain the document outline, used with pager
 	 * 
@@ -842,16 +897,10 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return fragment;
 		}
 
-		private OutlineAdapter outline_adapter;
-
 		private ListView outline_listview;
 
 		public OutlineFragment() {
 			// Required empty public constructor
-		}
-
-		LaTeXStringBuilder getDocument() {
-			return ((LaTeXEditingActivity) getActivity()).current_document;
 		}
 
 		@Override
@@ -859,13 +908,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			// Inflate the layout for this fragment
 			View view = inflater.inflate(R.layout.fragment_outline, container, false);
 			outline_listview = (ListView) view.findViewById(R.id.document_outline);
-			outline_adapter = new OutlineAdapter(getActivity());
-			// outline_listview.setAdapter(outline_adapter);
 			outline_listview.setOnItemClickListener(new OnItemClickListener() {
 
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-					getDocument().setCursor(outline_adapter.getItem(position).getTextPosition());
+					((LaTeXEditingActivity) getActivity()).current_document.setCursor(outline_adapter.getItem(position)
+							.getTextPosition());
 				}
 			});
 			return view;
@@ -880,43 +928,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				outline_listview.setAdapter(null);
 			}
 		}
-
-		public class OutlineAdapter extends ArrayAdapter<Section> {
-
-			public OutlineAdapter(Context context) {
-				super(context, android.R.layout.simple_list_item_1);
-			}
-
-			@Override
-			public int getCount() {
-				List<Section> sections = getDocument().getOutLine();
-				return sections == null ? 0 : sections.size();
-			}
-
-			@Override
-			public Section getItem(int position) {
-				List<Section> sections = getDocument().getOutLine();
-				return sections == null ? null : sections.get(position);
-			}
-
-		}
-
-		/**
-		 * Task to refresh the document outline in back ground
-		 */
-		// class ReloadOutlineTask extends AsyncTask<Void, Void, Section[]> {
-		//
-		// @Override
-		// protected Section[] doInBackground(Void... params) {
-		// return null;
-		// }
-		//
-		// @Override
-		// protected void onPostExecute(Section[] result) {
-		// sections = result;
-		// }
-		//
-		// }
 
 	}
 
@@ -946,113 +957,15 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return view;
 		}
 
-		/**
-		 * Adapter containing quickly accessible items such as
-		 * 
-		 * - Frequently used commands
-		 * 
-		 * - Defined labels
-		 * 
-		 * @author L.A.H.
-		 * 
-		 */
-		class QuickAccessAdapter extends BaseExpandableListAdapter {
-
-			static final int CATEGORY_COMMAND = 0, CATEGORY_LABELS = 1;
-
-			static final String SYM_PILCROW = "\u00B6", SYM_CENT = "\u00A2", SYM_SECTION = "\u00A7";
-
-			String[] commands;
-
-			int current_expanding_group = -1;
-
-			private final LayoutInflater inflater;
-
-			public QuickAccessAdapter(Context context) {
-				inflater = LayoutInflater.from(context);
-			}
-
-			@Override
-			public String getChild(int groupPosition, int childPosition) {
-				switch (groupPosition) {
-				case CATEGORY_COMMAND:
-					return commands == null ? null : commands[childPosition];
-				default:
-					// return insertion_items[groupPosition][childPosition];
-					return null;
-				}
-			}
-
-			@Override
-			public long getChildId(int groupPosition, int childPosition) {
-				return childPosition;
-			}
-
-			@Override
-			public int getChildrenCount(int groupPosition) {
-				switch (groupPosition) {
-				case CATEGORY_COMMAND:
-					return commands == null ? 0 : commands.length;
-				default:
-					// return insertion_items[groupPosition].length;
-					return 0;
-				}
-			}
-
-			@Override
-			public View getChildView(int groupPosition, int childPosition, boolean isLastChild, View convertView,
-					ViewGroup parent) {
-				return getTextViewWithText(getChild(groupPosition, childPosition), convertView);
-			}
-
-			@Override
-			public String getGroup(int groupPosition) {
-				return access_categories[groupPosition];
-			}
-
-			@Override
-			public int getGroupCount() {
-				return access_categories.length;
-			}
-
-			@Override
-			public long getGroupId(int groupPosition) {
-				return groupPosition;
-			}
-
-			@Override
-			public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-				return getTextViewWithText(getGroup(groupPosition), convertView);
-			}
-
-			private View getTextViewWithText(String text, View convertView) {
-				TextView view;
-				if (convertView instanceof TextView) {
-					view = (TextView) convertView;
-				} else {
-					view = (TextView) inflater.inflate(android.R.layout.simple_expandable_list_item_1, null);
-					view.setTextSize(18);
-					view.setSingleLine();
-					view.setEllipsize(TruncateAt.END);
-				}
-				view.setText(text);
-				return view;
-			}
-
-			@Override
-			public boolean hasStableIds() {
-				return false;
-			}
-
-			@Override
-			public boolean isChildSelectable(int groupPosition, int childPosition) {
-				return true;
-			}
-		}
-
 	}
 
-	class SearchActionModeCallback implements ActionMode.Callback {
+	/**
+	 * Action mode to display the search box in action bar to facilitate searching
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public class SearchActionModeCallback implements ActionMode.Callback {
 
 		@Override
 		public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
@@ -1092,6 +1005,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
 			return false;
 		}
+		
 	}
 
 }

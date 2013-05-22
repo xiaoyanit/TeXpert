@@ -25,7 +25,6 @@ import android.text.style.ClickableSpan;
 import android.text.style.UpdateAppearance;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.Toast;
 
 /**
  * This extension of {@link SpannableStringBuilder} is to provide better syntax highlighting performance editing LaTeX
@@ -70,29 +69,31 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private File file;
 
-	private LaTeXEditingActivity host_activity;
-
 	private Indexer<CharSequence>[] indexers;
 
 	private boolean is_modified;
 
 	private boolean is_outline_modified;
 
+	private NonEscapedBackslashIndexer nonescbs_indexer;
+
 	private List<Section> sections;
 
 	private EditText view;
 
+	private DocumentWatcher watcher;
+
 	@SuppressWarnings("unchecked")
 	public LaTeXStringBuilder(LaTeXEditingActivity activity, CharSequence text, File file) {
 		super(text);
-		this.host_activity = activity;
+		this.watcher = activity;
 		this.is_modified = false;
 		this.file = file;
 		edit_actions = new LinkedList<EditAction>();
 
 		// Initialize the indexers
 		NewlineIndexer newline_indexer = new NewlineIndexer(text);
-		NonEscapedBackslashIndexer nonescbs_indexer = new NonEscapedBackslashIndexer(text);
+		nonescbs_indexer = new NonEscapedBackslashIndexer(text);
 		CommentIndexer comment_indexer = new CommentIndexer(text, newline_indexer, nonescbs_indexer);
 		NonEscapedSpecialCharsIndexer nonescspec_indexer = new NonEscapedSpecialCharsIndexer(text, nonescbs_indexer);
 		indexers = new Indexer[] { newline_indexer, nonescbs_indexer, comment_indexer, nonescspec_indexer };
@@ -252,7 +253,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int pci_nonesc = pcistart;
 			for (; pci_nonesc < pciend; pci_nonesc++) {
 				int pcpos = indexers[LINE_COMMENT].getValueAt(pci_nonesc);
-				if (isNonEscaped(pcpos))
+				if (nonescbs_indexer.isNonEscaped(this, pcpos))
 					// Make sure that this is not escaped % to break
 					// TODO Do the same for escaped command as well
 					break;
@@ -300,36 +301,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return super.getSpanStart(what);
 	}
 
-	boolean isLetter(char c) {
-		return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
-	}
-
 	public boolean isModified() {
 		return is_modified;
-	}
-
-	/**
-	 * Determine if the character at a specific position is escaped i.e. the backslash (if any) right before it does not
-	 * function as an escaped character. This can be determined by checking if the maximum number of backslashes right
-	 * before the character is even.
-	 * 
-	 * @param position
-	 *            The position to check
-	 * @return {@code true} if this position is not backslash-escaped
-	 */
-	public boolean isNonEscaped(int position) {
-		// int num_backslash_bef = 0;
-		// Find the position of farthest backslash right before character at position
-		// int fbspos = position - 1;
-		// while (fbspos >= 0 && charAt(fbspos) == '\\') {
-		// // num_backslash_bef++;
-		// fbspos--;
-		// }
-		// // Note: Maximum number of backslash before `position` is `position - fbspos - 1`
-		// return ((position - fbspos - 1) & 1) == 0;
-		if (position == 0 || charAt(position - 1) != '\\')
-			return true;
-		return !indexers[NON_ESC_BACKSLASH].contain(position - 1);
 	}
 
 	@Override
@@ -363,8 +336,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		// Refresh the commands and document outline
 
 		// Notify activity to update action bar, etc.
-		if (host_activity != null)
-			host_activity.notifyDocumentStateChanged();
+		if (watcher != null)
+			watcher.notifyDocumentStateChanged();
 		is_modified = true;
 		is_outline_modified = true;
 		cached_line_spans = null; // Invalidate cache after replacement
@@ -384,21 +357,16 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			replace(sel_start, sel_end, content);
 	}
 
-	public void save(File new_file, Runnable action_after_saved) {
-		try {
-			FileWriter writer = new FileWriter(new_file, false);
-			writer.write(toString());
-			writer.close();
-			file = new_file;
-			is_modified = false;
-			if (action_after_saved != null)
-				action_after_saved.run();
-			host_activity.notifyDocumentStateChanged();
-		} catch (Exception e) {
-			Toast.makeText(host_activity, host_activity.getString(R.string.message_cannot_save_document),
-					Toast.LENGTH_SHORT).show();
-			e.printStackTrace(System.out);
-		}
+	public void save(File new_file, Runnable action_after_saved) throws Exception {
+		FileWriter writer = new FileWriter(new_file, false);
+		writer.write(toString());
+		writer.close();
+		file = new_file;
+		is_modified = false;
+		if (watcher != null)
+			watcher.notifyDocumentStateChanged();
+		if (action_after_saved != null)
+			action_after_saved.run();
 	}
 
 	public boolean search(String search_pattern, boolean regex) {
