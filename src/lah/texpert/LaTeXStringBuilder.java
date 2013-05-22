@@ -17,6 +17,7 @@ import lah.index.latex.CommentIndexer;
 import lah.index.latex.NewlineIndexer;
 import lah.index.latex.NonEscapedBackslashIndexer;
 import lah.index.latex.NonEscapedSpecialCharsIndexer;
+import lah.index.latex.Utils;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.TextPaint;
@@ -100,34 +101,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	}
 
 	/**
-	 * Find the index of a LaTeX argument enclosed in curly braces at a position
-	 * 
-	 * @param pos
-	 * @param len
-	 * @return
-	 */
-	private int endIndexArgument(int pos, int len) {
-		char c = charAt(pos);
-		if (c != '{')
-			return pos - 1;
-		int braces = 1;
-		pos = pos + 1;
-		while (pos < len && braces > 0) {
-			c = charAt(pos);
-			switch (c) {
-			case '{':
-				braces++;
-				break;
-			case '}':
-				braces--;
-				break;
-			}
-			pos++;
-		}
-		return pos;
-	}
-
-	/**
 	 * Find the end index of the longest subsequence start from pos and match the regular expression [A-Za-z]*
 	 * 
 	 * @param pos
@@ -160,7 +133,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				Integer freq = commands.get(cmd);
 				commands.put(cmd, freq == null ? 1 : freq + 1);
 				if (sectioning_command_pattern.matcher(cmd).matches()) {
-					int k = endIndexArgument(j, len);
+					int k = Utils.endIndexArgument(this, j, len);
 					// texbook does not use \subsection in LaTeX way
 					if (k > j) {
 						String title = substring(this, j + 1, k - 1);
@@ -214,12 +187,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				int nearest_linefeed = indexers[NEWLINE].getValueAt(indexers[NEWLINE].findFirst(position));
 				return nearest_linefeed < 0 ? len : nearest_linefeed;
 			}
-			// If not, then this span starts with a special character
 
-			if (charAt(position) == '\\') {
-				// TODO Make sure that this is not escaped
-				return endIndexLongestLettersSubsequence(position + 1, len);
-			}
+			// If not, then it is either a control sequence or (non-escaped) special symbol
+			if (charAt(position) == '\\')
+				return Utils.getEndOfControlSequenceAt(this, position);
 			return position + 1;
 		}
 		return super.getSpanEnd(what);
@@ -255,7 +226,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				int pcpos = indexers[LINE_COMMENT].getValueAt(pci_nonesc);
 				if (nonescbs_indexer.isNonEscaped(this, pcpos))
 					// Make sure that this is not escaped % to break
-					// TODO Do the same for escaped command as well
 					break;
 			}
 			int comment_start = end;
@@ -271,16 +241,22 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			// int bsend = indexers[SPECIAL].findFirst(comment_start);
 			int bsstart = indexers[NON_ESC_BACKSLASH].findFirst(start);
 			int bsend = indexers[NON_ESC_BACKSLASH].findFirst(comment_start);
+			int ssstart = indexers[NON_ESC_SPECIAL].findFirst(start);
+			int ssend = indexers[NON_ESC_SPECIAL].findFirst(comment_start);
 
 			// Now we are ready to produce the result
-			TeXTokenSpan[] result = new TeXTokenSpan[bsend - bsstart + has_comment];
+			TeXTokenSpan[] result = new TeXTokenSpan[ssend - ssstart + bsend - bsstart + has_comment];
 			if (has_comment > 0)
 				result[0] = new TeXTokenSpan(this, comment_start, true);
+			int d = has_comment - bsstart;
 			for (int bs = bsstart; bs < bsend; bs++) {
-				// int pos = indexers[SPECIAL].getValueAt(bs);
 				int pos = indexers[NON_ESC_BACKSLASH].getValueAt(bs);
-				// TODO Skip consecutive backslashes & annotate if a backslash has escape effect
-				result[bs - bsstart + has_comment] = new TeXTokenSpan(this, pos, false);
+				result[bs + d] = new TeXTokenSpan(this, pos, false);
+			}
+			d = has_comment + bsend - bsstart - ssstart;
+			for (int bs = ssstart; bs < ssend; bs++) {
+				int pos = indexers[NON_ESC_SPECIAL].getValueAt(bs);
+				result[bs + d] = new TeXTokenSpan(this, pos, false);
 			}
 
 			// Update the cache to prevent re-computation
