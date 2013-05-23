@@ -13,11 +13,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lah.index.Indexer;
+import lah.index.latex.CSUtils;
 import lah.index.latex.CommentIndexer;
 import lah.index.latex.NewlineIndexer;
 import lah.index.latex.NonEscapedBackslashIndexer;
 import lah.index.latex.NonEscapedSpecialCharsIndexer;
-import lah.index.latex.Utils;
+import lah.index.latex.SectionIndexer;
+import android.content.Context;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.TextPaint;
@@ -25,6 +27,7 @@ import android.text.style.CharacterStyle;
 import android.text.style.ClickableSpan;
 import android.text.style.UpdateAppearance;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 
 /**
@@ -40,7 +43,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	 * Ordering in term of dependency: indexing of line comments and non-escaped special symbols depend on escape
 	 * backslashed and new lines.
 	 */
-	static final int NEWLINE = 0, NON_ESC_BACKSLASH = 1, LINE_COMMENT = 2, NON_ESC_SPECIAL = 3;
+	static final int NEWLINE = 0, NON_ESC_BACKSLASH = 1, LINE_COMMENT = 2, NON_ESC_SPECIAL = 3, SECTIONS = 4;
 
 	static final Pattern sectioning_command_pattern = Pattern
 			.compile("\\\\(part|chapter|section|subsection|subsubsection|subsubsubsection|input)");
@@ -78,6 +81,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private NonEscapedBackslashIndexer nonescbs_indexer;
 
+	private OutlineAdapter outline_adapter;
+
+	private SectionIndexer section_indexer;
+
 	private List<Section> sections;
 
 	private EditText view;
@@ -91,13 +98,16 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		this.is_modified = false;
 		this.file = file;
 		edit_actions = new LinkedList<EditAction>();
+		outline_adapter = new OutlineAdapter(activity);
 
 		// Initialize the indexers
 		NewlineIndexer newline_indexer = new NewlineIndexer(text);
 		nonescbs_indexer = new NonEscapedBackslashIndexer(text);
 		CommentIndexer comment_indexer = new CommentIndexer(text, newline_indexer, nonescbs_indexer);
 		NonEscapedSpecialCharsIndexer nonescspec_indexer = new NonEscapedSpecialCharsIndexer(text, nonescbs_indexer);
-		indexers = new Indexer[] { newline_indexer, nonescbs_indexer, comment_indexer, nonescspec_indexer };
+		section_indexer = new SectionIndexer(text, nonescbs_indexer);
+		indexers = new Indexer[] { newline_indexer, nonescbs_indexer, comment_indexer, nonescspec_indexer,
+				section_indexer };
 	}
 
 	/**
@@ -133,12 +143,12 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				Integer freq = commands.get(cmd);
 				commands.put(cmd, freq == null ? 1 : freq + 1);
 				if (sectioning_command_pattern.matcher(cmd).matches()) {
-					int k = Utils.endIndexArgument(this, j, len);
-					// texbook does not use \subsection in LaTeX way
-					if (k > j) {
-						String title = substring(this, j + 1, k - 1);
-						temp_sections.add(new Section(title, i));
-					}
+					// int k = CSUtils.endIndexArgument(this, j, len);
+					// // texbook does not use \subsection in LaTeX way
+					// if (k > j) {
+					// String title = substring(this, j + 1, k - 1);
+					// temp_sections.add(new Section(title, i));
+					// }
 				}
 			}
 		}
@@ -176,6 +186,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return sections;
 	}
 
+	public OutlineAdapter getOutlineAdapter() {
+		return outline_adapter;
+	}
+
 	@Override
 	public int getSpanEnd(Object what) {
 		if (what instanceof TeXTokenSpan) {
@@ -190,7 +204,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 			// If not, then it is either a control sequence or (non-escaped) special symbol
 			if (charAt(position) == '\\')
-				return Utils.getEndOfControlSequenceAt(this, position);
+				return CSUtils.getEndOfControlSequenceAt(this, position);
 			return position + 1;
 		}
 		return super.getSpanEnd(what);
@@ -309,14 +323,17 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		for (int i = 0; i < indexers.length; i++)
 			indexers[i].afterSequenceChanged(this, affected[i], len_diff);
 
+		// BUG: need to do these before all notifications
+		is_modified = true;
+		is_outline_modified = true;
+		cached_line_spans = null; // Invalidate cache after replacement
+
 		// Refresh the commands and document outline
+		outline_adapter.notifyDataSetChanged();
 
 		// Notify activity to update action bar, etc.
 		if (watcher != null)
 			watcher.notifyDocumentStateChanged();
-		is_modified = true;
-		is_outline_modified = true;
-		cached_line_spans = null; // Invalidate cache after replacement
 		return this;
 	}
 
@@ -379,7 +396,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int pos = last_action.replace_pos;
 			String bef = last_action.before;
 			String aft = last_action.after;
-			// Must not save this replacement; otherwise, we cannot make a next undo
+			// Must not save this replacement; otherwise, we cannot make a next
+			// undo
 			replace(pos, pos + aft.length(), bef, 0, bef.length(), false);
 		}
 		return true;
@@ -391,7 +409,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	}
 
-	static class EditAction {
+	public static class EditAction {
 
 		String before, after;
 
@@ -405,16 +423,32 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	}
 
-	public static class Section {
+	public class OutlineAdapter extends ArrayAdapter<Section> {
+
+		public OutlineAdapter(Context context) {
+			super(context, android.R.layout.simple_list_item_1);
+		}
+
+		@Override
+		public int getCount() {
+			return section_indexer.size();
+		}
+
+		@Override
+		public Section getItem(int position) {
+			int doc_pos = section_indexer.getValueAt(position);
+			return new Section(doc_pos);
+		}
+
+	}
+
+	public class Section {
 
 		int position;
 
-		String title;
-
 		SectionType type;
 
-		public Section(String title, int position) {
-			this.title = title;
+		public Section(int position) {
 			this.position = position;
 		}
 
@@ -424,7 +458,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 		@Override
 		public String toString() {
-			return title;
+			int j = CSUtils.getEndOfControlSequenceAt(LaTeXStringBuilder.this, position);
+			int k = CSUtils.getEndOfArgumentAt(LaTeXStringBuilder.this, j);
+			// texbook does not use \subsection in LaTeX way
+			return k > j ? CSUtils.substring(LaTeXStringBuilder.this, j + 1, k - 1) : "";
 		}
 	}
 

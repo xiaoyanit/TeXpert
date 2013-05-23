@@ -4,12 +4,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.InputStream;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lah.texpert.LaTeXStringBuilder.DocumentWatcher;
-import lah.texpert.LaTeXStringBuilder.Section;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
@@ -71,8 +69,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
 	static final String DEBUG_FILE = "sample.tex";
-
-	private static OutlineAdapter outline_adapter;
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -144,6 +140,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private OutlineFragment outline_fragment;
 
+	ListView outline_listview;
+
 	private AlertDialog overwrite_confirm_dialog;
 
 	private File pdf_file;
@@ -173,7 +171,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 								setCurrentDocument(new LaTeXStringBuilder(LaTeXEditingActivity.this, "", null));
 							else {
 								String doccls = document_classes[cls];
-								// TODO Cache author & allow for customized templates
+								// TODO Cache author & allow for customized
+								// templates
 								String author = "";
 								String autogen = "\\section{}\n\n\\section{}\n\n\\section{}\n\n";
 								String newdoc = String.format(TEMPLATE, doccls, author, autogen);
@@ -242,7 +241,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 		// Setup the main pager
 		current_document = new LaTeXStringBuilder(this, "", null);
-		outline_adapter = new OutlineAdapter(this);
 		editor_fragment = EditorFragment.newInstance();
 		outline_fragment = OutlineFragment.newInstance(editor_fragment);
 		log_fragment = LogViewFragment.newInstance();
@@ -256,10 +254,13 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		// Set up the action bar to show a dropdown list.
 		// action_bar.setDisplayShowTitleEnabled(false);
 		// action_bar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
-		// action_bar.setListNavigationCallbacks(new ArrayAdapter<String>(action_bar.getThemedContext(),
-		// android.R.layout.simple_list_item_1, android.R.id.text1, new String[] {}), new OnNavigationListener() {
+		// action_bar.setListNavigationCallbacks(new
+		// ArrayAdapter<String>(action_bar.getThemedContext(),
+		// android.R.layout.simple_list_item_1, android.R.id.text1, new String[]
+		// {}), new OnNavigationListener() {
 		// @Override
-		// public boolean onNavigationItemSelected(int itemPosition, long itemId) {
+		// public boolean onNavigationItemSelected(int itemPosition, long
+		// itemId) {
 		// return false;
 		// }
 		// });
@@ -784,7 +785,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 				@Override
 				public void onEvent(int event, String path) {
-					// log file is overwritten by external process ==> reload the log
+					// log file is overwritten by external process ==> reload
+					// the log
 					if (path != null && log_file_name != null && path.equals(log_file_name))
 						loadLog();
 				}
@@ -844,6 +846,9 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				setCurrentDocument(current_document);
 				if (DEBUG)
 					Log.v(TAG, "setText takes " + (System.currentTimeMillis() - t) + "ms");
+				// FIXME Need to set the outline adapter for the outline list view here!
+				if (outline_listview != null)
+					outline_listview.setAdapter(current_document.getOutlineAdapter());
 			}
 			t = System.currentTimeMillis();
 			state_switcher.showPrevious();
@@ -856,30 +861,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 		public OpeningFileBufferAdapter(Context context) {
 			super(context, 0);
-		}
-
-	}
-
-	public class OutlineAdapter extends ArrayAdapter<Section> {
-
-		public OutlineAdapter(Context context) {
-			super(context, android.R.layout.simple_list_item_1);
-		}
-
-		@Override
-		public int getCount() {
-			if (current_document == null)
-				return 0;
-			List<Section> sections = current_document.getOutLine();
-			return sections == null ? 0 : sections.size();
-		}
-
-		@Override
-		public Section getItem(int position) {
-			if (current_document == null)
-				return null;
-			List<Section> sections = current_document.getOutLine();
-			return sections == null ? null : sections.get(position);
 		}
 
 	}
@@ -897,8 +878,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return fragment;
 		}
 
-		private ListView outline_listview;
-
 		public OutlineFragment() {
 			// Required empty public constructor
 		}
@@ -907,26 +886,18 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 			// Inflate the layout for this fragment
 			View view = inflater.inflate(R.layout.fragment_outline, container, false);
-			outline_listview = (ListView) view.findViewById(R.id.document_outline);
-			outline_listview.setOnItemClickListener(new OnItemClickListener() {
+			LaTeXEditingActivity activity = (LaTeXEditingActivity) getActivity();
+			activity.outline_listview = (ListView) view.findViewById(R.id.document_outline);
+			activity.outline_listview.setAdapter(activity.current_document.getOutlineAdapter());
+			activity.outline_listview.setOnItemClickListener(new OnItemClickListener() {
 
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-					((LaTeXEditingActivity) getActivity()).current_document.setCursor(outline_adapter.getItem(position)
-							.getTextPosition());
+					LaTeXStringBuilder doc = ((LaTeXEditingActivity) getActivity()).current_document;
+					doc.setCursor(doc.getOutlineAdapter().getItem(position).getTextPosition());
 				}
 			});
 			return view;
-		}
-
-		@Override
-		public void setUserVisibleHint(boolean isVisibleToUser) {
-			super.setUserVisibleHint(isVisibleToUser);
-			if (isVisibleToUser) {
-				outline_listview.setAdapter(outline_adapter);
-			} else if (outline_listview != null) {
-				outline_listview.setAdapter(null);
-			}
 		}
 
 	}
@@ -1005,7 +976,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
 			return false;
 		}
-		
+
 	}
 
 }
