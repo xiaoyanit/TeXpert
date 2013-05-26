@@ -1,0 +1,10 @@
+Version 1.1
+ * Fix: now work with both TeXPortal donate and free
+ * Enhanced outline tracking (no more delay)
+ * Fix: incorrect control sequence highlighting e.g. `\\begin`
+
+Version 1.0
+ * Quick pdfLaTeX and open PDF buttons
+ * Document outline
+ * Log file tracking
+ * Syntax highlighting

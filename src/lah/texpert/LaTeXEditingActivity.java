@@ -19,6 +19,8 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -68,7 +70,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	static final boolean DEBUG = false;
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
-	static final String DEBUG_FILE = "sample.tex";
+	static final String DEBUG_FILE = "texbook.tex"; // "sample.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -83,19 +85,16 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	static final String TEXPORTAL_ARGUMENT_ENGINE = "lah.texportal.argument.ENGINE";
 
+	static final ComponentName TEXPORTAL_DONATE = new ComponentName("lah.texportal.donate",
+			"lah.texportal.activities.CompileDocumentActivity");
+
 	private ActionBar action_bar;
 
 	private final Runnable compile_document_bibtex = new Runnable() {
 
 		@Override
 		public void run() {
-			try {
-				startActivityForResult(
-						new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_document.getFile()))
-								.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "bibtex"), 0);
-			} catch (ActivityNotFoundException e) {
-				showToast(R.string.message_cannot_send_texportal);
-			}
+			sendToTeXPortal("bibtex");
 		}
 	};
 
@@ -103,13 +102,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 		@Override
 		public void run() {
-			try {
-				startActivityForResult(
-						new Intent().setComponent(TEXPORTAL).setData(Uri.fromFile(current_document.getFile()))
-								.putExtra(TEXPORTAL_ARGUMENT_ENGINE, "pdflatex"), 0);
-			} catch (ActivityNotFoundException e) {
-				showToast(R.string.message_cannot_send_texportal);
-			}
+			sendToTeXPortal("pdflatex");
 		}
 	};
 
@@ -337,7 +330,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		case R.id.action_undo:
 			return current_document.undoLastEdit();
 		case R.id.action_search:
-			return showSearchFragment();
+			return startSearchMode();
 		case R.id.action_format:
 			return showFormatFragment();
 		case R.id.action_clean:
@@ -370,6 +363,23 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		state_switcher.showNext();
 		// Read and style the file in background thread
 		(open_document_task = new OpenDocumentTask()).execute(file);
+	}
+
+	private void sendToTeXPortal(String engine) {
+		try {
+			PackageManager pm = getPackageManager();
+			ComponentName comp;
+			try {
+				pm.getPackageInfo(TEXPORTAL_DONATE.getPackageName(), PackageManager.GET_META_DATA);
+				comp = TEXPORTAL_DONATE;
+			} catch (NameNotFoundException e) {
+				comp = TEXPORTAL;
+			}
+			startActivityForResult(new Intent().setComponent(comp).setData(Uri.fromFile(current_document.getFile()))
+					.putExtra(TEXPORTAL_ARGUMENT_ENGINE, engine), 0);
+		} catch (ActivityNotFoundException e) {
+			showToast(R.string.message_cannot_send_texportal);
+		}
 	}
 
 	private void setCurrentDocument(LaTeXStringBuilder document) {
@@ -482,14 +492,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		return true;
 	}
 
-	private boolean showSearchFragment() {
-		// editor_fragment.showSearchFragment();
-		if (search_action_mode != null)
-			return true;
-		search_action_mode = getActivity().startActionMode(search_action_mode_callback);
-		return true;
-	}
-
 	private boolean showToast(int msg_res_id) {
 		Toast.makeText(this, getString(msg_res_id), Toast.LENGTH_SHORT).show();
 		return true;
@@ -500,11 +502,19 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		return true;
 	}
 
+	private boolean startSearchMode() {
+		// editor_fragment.showSearchFragment();
+		if (search_action_mode != null)
+			return true;
+		search_action_mode = getActivity().startActionMode(search_action_mode_callback);
+		return true;
+	}
+
 	private void updateActionBar() {
 		if (current_document.getFile() != null)
 			action_bar.setSubtitle(current_document.getFile().getName() + (current_document.isModified() ? "*" : ""));
 		else
-			action_bar.setSubtitle("untitled");
+			action_bar.setSubtitle("untitled" + (current_document.isModified() ? "*" : ""));
 	}
 
 	private void updateFileInfo() {
@@ -578,6 +588,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				}
 			});
 			document_textview.setText(activity.current_document);
+			// document_textview.setMovementMethod(LinkMovementMethod.getInstance());
 
 			// Prepare button to access navigation/insertion
 			ImageButton quick_access_button = (ImageButton) view.findViewById(R.id.quick_access_button);

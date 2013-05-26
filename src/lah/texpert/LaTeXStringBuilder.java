@@ -2,22 +2,19 @@ package lah.texpert;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import lah.index.Indexer;
+import lah.index.DynamicTracker;
 import lah.index.latex.CSUtils;
 import lah.index.latex.CommentIndexer;
+import lah.index.latex.ControlSequencesCounter;
+import lah.index.latex.LabelsIndexer;
 import lah.index.latex.NewlineIndexer;
 import lah.index.latex.NonEscapedBackslashIndexer;
 import lah.index.latex.NonEscapedSpecialCharsIndexer;
+import lah.index.latex.RefsIndexer;
 import lah.index.latex.SectionIndexer;
 import android.content.Context;
 import android.text.Selection;
@@ -26,6 +23,7 @@ import android.text.TextPaint;
 import android.text.style.CharacterStyle;
 import android.text.style.ClickableSpan;
 import android.text.style.UpdateAppearance;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -69,23 +67,33 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private int cached_line_start, cached_line_end;
 
+	private CommentIndexer comment_indexer;
+
+	private ControlSequencesCounter control_sequence_counter;
+
+	private DynamicTracker<CharSequence>[] document_trackers;
+
 	private LinkedList<EditAction> edit_actions;
 
 	private File file;
 
-	private Indexer<CharSequence>[] indexers;
-
 	private boolean is_modified;
 
-	private boolean is_outline_modified;
+	@SuppressWarnings("unused")
+	private LabelsIndexer label_indexer;
 
-	private NonEscapedBackslashIndexer nonescbs_indexer;
+	private NewlineIndexer newline_indexer;
+
+	private NonEscapedBackslashIndexer nonesc_backslash_indexer;
+
+	private NonEscapedSpecialCharsIndexer nonesc_special_chars_indexer;
 
 	private OutlineAdapter outline_adapter;
 
-	private SectionIndexer section_indexer;
+	@SuppressWarnings("unused")
+	private RefsIndexer ref_indexer;
 
-	private List<Section> sections;
+	private SectionIndexer section_indexer;
 
 	private EditText view;
 
@@ -101,69 +109,44 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		outline_adapter = new OutlineAdapter(activity);
 
 		// Initialize the indexers
-		NewlineIndexer newline_indexer = new NewlineIndexer(text);
-		nonescbs_indexer = new NonEscapedBackslashIndexer(text);
-		CommentIndexer comment_indexer = new CommentIndexer(text, newline_indexer, nonescbs_indexer);
-		NonEscapedSpecialCharsIndexer nonescspec_indexer = new NonEscapedSpecialCharsIndexer(text, nonescbs_indexer);
-		section_indexer = new SectionIndexer(text, nonescbs_indexer);
-		indexers = new Indexer[] { newline_indexer, nonescbs_indexer, comment_indexer, nonescspec_indexer,
-				section_indexer };
-	}
+		String TAG = "indexing";
 
-	/**
-	 * Find the end index of the longest subsequence start from pos and match the regular expression [A-Za-z]*
-	 * 
-	 * @param pos
-	 *            Start position
-	 * @param len
-	 *            Length of this object
-	 * @return Return the maximum position {@code k >= pos} where the subsequence {@code [pos..k)} are all letters
-	 */
-	private int endIndexLongestLettersSubsequence(int pos, int len) {
-		while (pos < len) {
-			char c = charAt(pos);
-			if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
-				pos++;
-			else
-				break;
-		}
-		return pos;
-	}
+		long t = System.currentTimeMillis();
+		newline_indexer = new NewlineIndexer(text);
+		if (LaTeXEditingActivity.DEBUG)
+			Log.v(TAG, "Index linefeed takes " + (System.currentTimeMillis() - t));
 
-	private void generateMetaInfo() {
-		Map<String, Integer> commands = new TreeMap<String, Integer>();
-		List<Section> temp_sections = new LinkedList<Section>();
-		int len = length();
+		t = System.currentTimeMillis();
+		nonesc_backslash_indexer = new NonEscapedBackslashIndexer(text);
+		if (LaTeXEditingActivity.DEBUG)
+			Log.v(TAG, "Index non-escaped backslashes takes " + (System.currentTimeMillis() - t));
 
-		for (int p = 0; p < indexers[NON_ESC_BACKSLASH].size(); p++) {
-			int i = indexers[NON_ESC_BACKSLASH].getValueAt(p);
-			int j = endIndexLongestLettersSubsequence(i + 1, len);
-			if (j - i > 1) {
-				String cmd = substring(this, i, j);
-				Integer freq = commands.get(cmd);
-				commands.put(cmd, freq == null ? 1 : freq + 1);
-				if (sectioning_command_pattern.matcher(cmd).matches()) {
-					// int k = CSUtils.endIndexArgument(this, j, len);
-					// // texbook does not use \subsection in LaTeX way
-					// if (k > j) {
-					// String title = substring(this, j + 1, k - 1);
-					// temp_sections.add(new Section(title, i));
-					// }
-				}
-			}
-		}
+		t = System.currentTimeMillis();
+		comment_indexer = new CommentIndexer(text, newline_indexer, nonesc_backslash_indexer);
+		if (LaTeXEditingActivity.DEBUG)
+			Log.v(TAG, "Index comments takes " + (System.currentTimeMillis() - t));
 
-		// Select the frequently used commands
-		Iterator<String> cmditer = commands.keySet().iterator();
-		Set<String> freq_used_cmds = new TreeSet<String>();
-		while (cmditer.hasNext()) {
-			String cmd = cmditer.next();
-			if (commands.get(cmd) >= 10)
-				freq_used_cmds.add(cmd);
-		}
-		sections = temp_sections;
-		is_outline_modified = false;
-		// external_files = new TreeSet<String>();
+		t = System.currentTimeMillis();
+		nonesc_special_chars_indexer = new NonEscapedSpecialCharsIndexer(text, nonesc_backslash_indexer);
+		if (LaTeXEditingActivity.DEBUG)
+			Log.v(TAG, "Index non-escaped special chars takes " + (System.currentTimeMillis() - t));
+
+		t = System.currentTimeMillis();
+		section_indexer = new SectionIndexer(text, nonesc_backslash_indexer);
+		if (LaTeXEditingActivity.DEBUG)
+			Log.v(TAG, "Index sections takes " + (System.currentTimeMillis() - t));
+
+		// ref_indexer = new RefsIndexer(text, nonesc_backslash_indexer);
+		// label_indexer = new LabelsIndexer(text, nonesc_backslash_indexer);
+
+		t = System.currentTimeMillis();
+		control_sequence_counter = new ControlSequencesCounter(text, nonesc_backslash_indexer);
+		if (LaTeXEditingActivity.DEBUG)
+			Log.v(TAG, "Count control sequences takes " + (System.currentTimeMillis() - t));
+
+		document_trackers = new DynamicTracker[] { newline_indexer, nonesc_backslash_indexer, comment_indexer,
+				nonesc_special_chars_indexer, section_indexer, control_sequence_counter };
+		// , ref_indexer, label_indexer };
 	}
 
 	public File getFile() {
@@ -180,12 +163,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return null;
 	}
 
-	public List<Section> getOutLine() {
-		if (sections == null || is_outline_modified)
-			generateMetaInfo();
-		return sections;
-	}
-
 	public OutlineAdapter getOutlineAdapter() {
 		return outline_adapter;
 	}
@@ -198,7 +175,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int len = length();
 			// If this span is for a line comment
 			if (ttsp.isComment()) {
-				int nearest_linefeed = indexers[NEWLINE].getValueAt(indexers[NEWLINE].findFirst(position));
+				int nearest_linefeed = newline_indexer.getValueAt(newline_indexer.findFirst(position));
 				return nearest_linefeed < 0 ? len : nearest_linefeed;
 			}
 
@@ -207,6 +184,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				return CSUtils.getEndOfControlSequenceAt(this, position);
 			return position + 1;
 		}
+		// if (what instanceof TeXReferenceSpan) {
+		// // TODO implement
+		// return ((TeXReferenceSpan) what).position + 10;
+		// }
 		return super.getSpanEnd(what);
 	}
 
@@ -222,23 +203,23 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 				return (T[]) cached_line_spans;
 
 			// First, we extend the range to contain a full line of text
-			int nlend = indexers[NEWLINE].findFirst(end);
-			end = indexers[NEWLINE].getValueAt(nlend);
+			int nlend = newline_indexer.findFirst(end);
+			end = newline_indexer.getValueAt(nlend);
 			if (end < 0) // no new line after original `end` ==> last line
 				end = length();
 			// If [start..end) is not the first line then set start to first character after the previous new line;
 			// otherwise set it to the beginning of text
-			start = (nlend > 0) ? indexers[NEWLINE].getValueAt(nlend - 1) + 1 : 0;
+			start = (nlend > 0) ? newline_indexer.getValueAt(nlend - 1) + 1 : 0;
 
 			// Percents in [start..end) are the [pcistart..pciend)^th percent of the whole text
-			int pcistart = indexers[LINE_COMMENT].findFirst(start);
-			int pciend = indexers[LINE_COMMENT].findFirst(end);
+			int pcistart = comment_indexer.findFirst(start);
+			int pciend = comment_indexer.findFirst(end);
 
 			// Go through each occurrences and pick up the first non-escaped one
 			int pci_nonesc = pcistart;
 			for (; pci_nonesc < pciend; pci_nonesc++) {
-				int pcpos = indexers[LINE_COMMENT].getValueAt(pci_nonesc);
-				if (nonescbs_indexer.isNonEscaped(this, pcpos))
+				int pcpos = comment_indexer.getValueAt(pci_nonesc);
+				if (nonesc_backslash_indexer.isNonEscaped(this, pcpos))
 					// Make sure that this is not escaped % to break
 					break;
 			}
@@ -246,31 +227,33 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			int has_comment = 0;
 			if (pci_nonesc < pciend) {
 				// We found some non-escaped % on this line
-				comment_start = indexers[LINE_COMMENT].getValueAt(pci_nonesc);
+				comment_start = comment_indexer.getValueAt(pci_nonesc);
 				has_comment = 1;
 			}
 
 			// Pick up the occurrences of special symbols from [start..comment_start)
 			// int bsstart = indexers[SPECIAL].findFirst(start);
 			// int bsend = indexers[SPECIAL].findFirst(comment_start);
-			int bsstart = indexers[NON_ESC_BACKSLASH].findFirst(start);
-			int bsend = indexers[NON_ESC_BACKSLASH].findFirst(comment_start);
-			int ssstart = indexers[NON_ESC_SPECIAL].findFirst(start);
-			int ssend = indexers[NON_ESC_SPECIAL].findFirst(comment_start);
+			int bsstart = nonesc_backslash_indexer.findFirst(start);
+			int bsend = nonesc_backslash_indexer.findFirst(comment_start);
+			int ssstart = nonesc_special_chars_indexer.findFirst(start);
+			int ssend = nonesc_special_chars_indexer.findFirst(comment_start);
 
 			// Now we are ready to produce the result
 			TeXTokenSpan[] result = new TeXTokenSpan[ssend - ssstart + bsend - bsstart + has_comment];
 			if (has_comment > 0)
 				result[0] = new TeXTokenSpan(this, comment_start, true);
-			int d = has_comment - bsstart;
+			int d = has_comment; // has_comment - bsstart;
 			for (int bs = bsstart; bs < bsend; bs++) {
-				int pos = indexers[NON_ESC_BACKSLASH].getValueAt(bs);
-				result[bs + d] = new TeXTokenSpan(this, pos, false);
+				int pos = nonesc_backslash_indexer.getValueAt(bs);
+				result[d] = new TeXTokenSpan(this, pos, false);
+				d++;
 			}
-			d = has_comment + bsend - bsstart - ssstart;
+			// d = has_comment + bsend - bsstart - ssstart;
 			for (int bs = ssstart; bs < ssend; bs++) {
-				int pos = indexers[NON_ESC_SPECIAL].getValueAt(bs);
-				result[bs + d] = new TeXTokenSpan(this, pos, false);
+				int pos = nonesc_special_chars_indexer.getValueAt(bs);
+				result[d] = new TeXTokenSpan(this, pos, false);
+				d++;
 			}
 
 			// Update the cache to prevent re-computation
@@ -279,6 +262,16 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			cached_line_end = end;
 			return (T[]) result;
 		}
+		// if (type == ClickableSpan.class) {
+		// int rs = ref_indexer.findFirst(start);
+		// int re = ref_indexer.findFirst(end);
+		// if (rs > 0)
+		// rs = rs - 1;
+		// TeXReferenceSpan[] result = new TeXReferenceSpan[re - rs];
+		// for (int i = rs; i < re; i++)
+		// result[i - rs] = new TeXReferenceSpan(ref_indexer.getValueAt(i));
+		// return (T[]) result;
+		// }
 		return super.getSpans(start, end, type);
 	}
 
@@ -288,6 +281,9 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			TeXTokenSpan ttsp = (TeXTokenSpan) what;
 			return ttsp.getPosition();
 		}
+		// if (what instanceof TeXReferenceSpan) {
+		// return ((TeXReferenceSpan) what).position;
+		// }
 		return super.getSpanStart(what);
 	}
 
@@ -310,22 +306,21 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		}
 
 		int len_diff = (tbend - tbstart) - (end - start);
-		long[] affected = new long[indexers.length];
+		long[] affected = new long[document_trackers.length];
 
 		// Obtain affected regions for each indexer; need to do this IN REVERSE DEPENDENCY ORDER
-		for (int i = indexers.length - 1; i >= 0; i--)
-			affected[i] = indexers[i].beforeSequenceChanged(this, start, end);
+		for (int i = document_trackers.length - 1; i >= 0; i--)
+			affected[i] = document_trackers[i].beforeSequenceChanged(this, start, end);
 
 		// Invoke superclass's method to update content and notify views
 		super.replace(start, end, tb, tbstart, tbend);
 
 		// Update the indexers after the text is replaced IN DEPENDENCY ORDER
-		for (int i = 0; i < indexers.length; i++)
-			indexers[i].afterSequenceChanged(this, affected[i], len_diff);
+		for (int i = 0; i < document_trackers.length; i++)
+			document_trackers[i].afterSequenceChanged(this, affected[i], len_diff);
 
 		// BUG: need to do these before all notifications
 		is_modified = true;
-		is_outline_modified = true;
 		cached_line_spans = null; // Invalidate cache after replacement
 
 		// Refresh the commands and document outline
@@ -467,6 +462,33 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public enum SectionType {
 		CHAPTER, PART, SECTION, SUBSECTION, SUBSUBSECTION, SUBSUBSUBSECTION
+	}
+
+	/**
+	 * Extension of {@link ClickableSpan} to hold suggestion texts
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	static class TeXReferenceSpan extends ClickableSpan {
+
+		int position;
+
+		TeXReferenceSpan(int position) {
+			this.position = position;
+		}
+
+		@Override
+		public void onClick(View widget) {
+			// TODO Implement
+			System.out.println("Link at " + position + " is click");
+		}
+
+		// @Override
+		// public void updateDrawState(TextPaint ds) {
+		// super.updateDrawState(ds);
+		// }
+
 	}
 
 	/**

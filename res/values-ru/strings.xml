@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">TeXpert</string>
+    <string name="title_activity_latex_editing">TeXpert</string>
+    <string name="title_activity_settings">Параметры</string>
+
+    <!-- Actions, menu labels -->
+    <string name="action_file">Файл</string>
+    <string name="action_new">Новый</string>
+    <string name="action_open">Открыть</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_clean">Очистить</string>
+    <string name="action_pdflatex">pdfLaTeX</string>
+    <string name="action_bibtex">BibTeX</string>
+    <string name="action_open_pdf">Открыть PDF</string>
+    <string name="action_edit">Редактировать</string>
+    <string name="action_undo">Отмена</string>
+    <string name="action_search">Поиск</string>
+    <string name="action_format">Форматировать</string>
+    <string name="action_wordwrap">Перенос слов</string>
+    <string name="action_settings">Параметры</string>
+    <string name="action_quit">Выход</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_replace">Заменить</string>
+    <string name="action_toggle_quick_access">Переключить быстрый доступ</string>
+    <string name="search_with_regex">Регулярные выражения</string>
+
+    <!-- Hints -->
+    <string name="hint_search_for">Образец поиска</string>
+    <string name="hint_replace_with">Заменить на</string>
+
+    <!-- Error messages -->
+    <string name="message_cannot_send_texportal">Невозможно откомпилировать документ: TeXPortal не установлен!</string>
+    <string name="message_cannot_save_document">Невозможно сохранить документ!</string>
+    <string name="message_cannot_open_document">Невозможно открыть документ!</string>
+    <string name="message_no_pdf_viewer_app">Нет приложения для просмотра PDF!</string>
+    <string name="message_unimplemented_feature">Эта функция еще не работает!</string>
+
+    <!-- Information messages -->
+    <string name="info_reading_in_progress">Происходит чтение &#8230;</string>
+    <string name="info_no_pdf_to_open">Нет файлов PDF для просмотра</string>
+
+    <!-- Параметры -->
+    <string name="pref_header_editor">Редактирование</string>
+    <string name="pref_header_compilation">Компиляция</string>
+    <string name="pref_title_font_size">Размер шрифта</string>
+    <string name="pref_title_font_family">Шрифт</string>
+    <string name="pref_title_autosave_before_compile">Автосохранение перед компиляцией</string>
+    <string name="pref_title_backup_on_suspend">Резервное копирование при простое</string>
+
+    <string-array name="font_sizes">
+        <item>18</item>
+        <item>20</item>
+        <item>24</item>
+        <item>28</item>
+        <item>30</item>
+        <item>32</item>
+        <item>36</item>
+        <item>40</item>
+    </string-array>
+    <string-array name="font_families">
+        <item>Sans Serif</item>
+        <item>Monospace</item>
+        <item>Serif</item>
+    </string-array>
+
+    <!-- Dialogs titles -->
+    <string name="title_confirm_overwrite">Перезаписать?</string>
+    <string name="title_save_as">Сохранить как</string>
+
+    <!-- Labels -->
+    <string name="document_outline">Содержание</string>
+    <string name="insert">Вставить</string>
+
+</resources>
