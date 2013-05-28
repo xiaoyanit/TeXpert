@@ -119,7 +119,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private ViewPager main_pager;
 
-	private EditorLogPagerAdapter main_pager_adapter;
+	private OutlineEditingLogPagerAdapter main_pager_adapter;
 
 	private final Runnable notify_open_document_error = new Runnable() {
 
@@ -138,6 +138,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	private AlertDialog overwrite_confirm_dialog;
 
 	private File pdf_file;
+
+	private PdfViewFragment pdf_view_fragment;
 
 	private SharedPreferences pref;
 
@@ -237,7 +239,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		editor_fragment = EditorFragment.newInstance();
 		outline_fragment = OutlineFragment.newInstance(editor_fragment);
 		log_fragment = LogViewFragment.newInstance();
-		main_pager_adapter = new EditorLogPagerAdapter(getSupportFragmentManager());
+		pdf_view_fragment = PdfViewFragment.newInstance();
+		main_pager_adapter = new OutlineEditingLogPagerAdapter(getSupportFragmentManager());
 		main_pager = (ViewPager) findViewById(R.id.editor_log_pager);
 		main_pager.setAdapter(main_pager_adapter);
 		main_pager.setCurrentItem(1);
@@ -651,44 +654,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	}
 
-	public class EditorLogPagerAdapter extends FragmentPagerAdapter {
-
-		public EditorLogPagerAdapter(FragmentManager fm) {
-			super(fm);
-		}
-
-		@Override
-		public int getCount() {
-			return 3;
-		}
-
-		@Override
-		public Fragment getItem(int position) {
-			switch (position) {
-			case 0:
-				return outline_fragment;
-			case 1:
-				return editor_fragment;
-			case 2:
-			default:
-				return log_fragment;
-			}
-		}
-
-		@Override
-		public float getPageWidth(int position) {
-			switch (position) {
-			case 0:
-				return 0.5f;
-			case 2:
-				return 0.6f;
-			default:
-				return 1.0f;
-			}
-		}
-
-	}
-
 	/**
 	 * Fragment for viewing pdfLaTeX generated log file
 	 * 
@@ -877,6 +842,51 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	}
 
 	/**
+	 * Adapter to support horizontal swipe between outline fragment, editing fragment, etc.
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public class OutlineEditingLogPagerAdapter extends FragmentPagerAdapter {
+
+		public OutlineEditingLogPagerAdapter(FragmentManager fm) {
+			super(fm);
+		}
+
+		@Override
+		public int getCount() {
+			return 3;
+		}
+
+		@Override
+		public Fragment getItem(int position) {
+			switch (position) {
+			case 0:
+				return outline_fragment;
+			case 1:
+				return editor_fragment;
+			case 2:
+				return pdf_view_fragment;
+			default:
+				return log_fragment;
+			}
+		}
+
+		@Override
+		public float getPageWidth(int position) {
+			switch (position) {
+			case 0:
+				return 0.5f;
+			case 2:
+				// return 0.6f;
+			default:
+				return 1.0f;
+			}
+		}
+
+	}
+
+	/**
 	 * Fragment to contain the document outline, used with pager
 	 * 
 	 * @author L.A.H.
@@ -909,6 +919,50 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				}
 			});
 			return view;
+		}
+
+	}
+
+	/**
+	 * Fragment to display the generated PDF
+	 * 
+	 * @author L.A.H.
+	 * 
+	 */
+	public static class PdfViewFragment extends Fragment {
+
+		public static PdfViewFragment newInstance() {
+			PdfViewFragment fragment = new PdfViewFragment();
+			return fragment;
+		}
+
+		private MuPDF mupdf;
+
+		public PdfViewFragment() {
+			// Required empty public constructor
+		}
+
+		@Override
+		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+			// Inflate the layout for this fragment
+			View view = inflater.inflate(R.layout.fragment_pdf_view, container, false);
+			ListView pdf_content_list = (ListView) view.findViewById(R.id.pdf_content);
+			try {
+				String testfile = Environment.getExternalStorageDirectory().getPath() + "/sample.pdf";
+				mupdf = new MuPDF(testfile);
+				pdf_content_list.setAdapter(new MuPDFPageAdapter(getActivity(), mupdf));
+			} catch (Exception e) {
+				e.printStackTrace(System.out);
+			}
+			return view;
+		}
+
+		@Override
+		public void onDetach() {
+			super.onDetach();
+			if (mupdf != null)
+				mupdf.onDestroy();
+			mupdf = null;
 		}
 
 	}

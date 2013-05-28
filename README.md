@@ -3,6 +3,8 @@ TeXpert
 
 LaTeX document preparation app for Android
 
+Donate version is now available on [Play store][0]. To build it from source, see instruction at the end of the file.
+
 This app aims to be a TeX document development environment application like
 TeXMaker or TeXworks on PC.
 
@@ -87,8 +89,26 @@ Technical Limitations
 
 In most situation, TeXpert only supports files up to 2MB.
 
+Build Instruction
+-----------------
+
+ * Compile [MuPDF][6] library:
+    - Modified files are in `mupdf/` subdirectory. Main changes are:
+       * Append `LOCAL_CFLAGS` with `-DNOCJK -DNODROIDFONT` and remove XPS/CBZ-related source in `android/jni/Core.mk`
+       * Various tweaks to `Application.mk` following optimization tips from http://blog.algolia.com/android-ndk-how-to-reduce-libs-size/
+       * Simplify implementations of functions `fz_open_document` and `fz_open_document_with_stream` in `fitz/doc_document.c`: remove XPS/CBZ handling & related `extern` functions
+       * Change package, remove unused functions in `android/jni/mupdf.c`
+    - Follow the build instruction of MuPDF i.e. execute `make generate` and then `ndk-build` in the `android/`. The shared libraries are in `android/libs/`. Just copy them to TeXpert.
+    - **Note**: All directories mentioned here are relative to root of extracted MuPDF source package.
+ * Clone my projects [LAHIndex][7] and [LAHWidgets][8]
+ * Import to Eclipse and build
+
+[0]: https://play.google.com/store/apps/details?id=lah.texpert
 [1]: http://www.swiftkey.net/
 [2]: http://www.swype.com/
 [3]: http://www.android.com/whatsnew/
 [4]: https://play.google.com/store/apps/details?id=lah.texportal
 [5]: http://en.wikibooks.org/wiki/TeX/catcode
+[6]: http://www.mupdf.com/
+[7]: https://github.com/anhoavu/LAHIndex
+[8]: https://github.com/anhoavu/LAHWidgets

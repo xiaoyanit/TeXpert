@@ -1,4 +1,6 @@
-The copyright of this work belongs to the author.
+This project is licensed under GNU Public License v3.
+
+TeXpert depends on PDF-handling library MuPDF which is a product of Artifex Inc. Usage of MuPDF in TeXpert is in conformance with its licensing terms and conditions.
 
 The power/standby icon is derived from Wikipedia at http://commons.wikimedia.org/wiki/File:IEC5009_Standby_Symbol.svg.
 
