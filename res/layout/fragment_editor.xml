@@ -45,6 +45,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
+            android:layout_marginRight="5dp"
             android:background="@android:color/holo_blue_dark"
             android:contentDescription="@string/action_toggle_quick_access"
             android:src="@drawable/ic_quick_access" />
@@ -55,7 +56,8 @@
             android:id="@+id/special_symbols_grid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingLeft="20dp" />
+            android:layout_marginTop="5dp"
+            android:background="@android:color/background_light" />
     </LinearLayout>
 
 </LinearLayout>

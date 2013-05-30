@@ -3,10 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
 
-    <ListView
+    <lah.texpert.UniformPageSizePDFDocumentView
         android:id="@+id/pdf_content"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" >
-    </ListView>
+        android:layout_height="match_parent"
+        android:layout_marginLeft="20dp" />
 
 </FrameLayout>

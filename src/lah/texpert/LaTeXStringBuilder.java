@@ -17,6 +17,7 @@ import lah.index.latex.NonEscapedSpecialCharsIndexer;
 import lah.index.latex.RefsIndexer;
 import lah.index.latex.SectionIndexer;
 import android.content.Context;
+import android.os.FileObserver;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.TextPaint;
@@ -75,12 +76,14 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private LinkedList<EditAction> edit_actions;
 
-	private File file;
-
 	private boolean is_modified;
 
 	@SuppressWarnings("unused")
 	private LabelsIndexer label_indexer;
+
+	File log_file, pdf_file;
+
+	private String log_file_name, pdf_file_name;
 
 	private NewlineIndexer newline_indexer;
 
@@ -95,6 +98,13 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	private SectionIndexer section_indexer;
 
+	/**
+	 * Observers to watch for changes in the directory containing the file whose content this document holds
+	 */
+	private FileObserver src_dir_observer;
+
+	private File tex_file;
+
 	private EditText view;
 
 	private DocumentWatcher watcher;
@@ -104,7 +114,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		super(text);
 		this.watcher = activity;
 		this.is_modified = false;
-		this.file = file;
+		// this.tex_file = file;
 		edit_actions = new LinkedList<EditAction>();
 		outline_adapter = new OutlineAdapter(activity);
 
@@ -147,10 +157,11 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		document_trackers = new DynamicTracker[] { newline_indexer, nonesc_backslash_indexer, comment_indexer,
 				nonesc_special_chars_indexer, section_indexer, control_sequence_counter };
 		// , ref_indexer, label_indexer };
+		setFile(file);
 	}
 
 	public File getFile() {
-		return file;
+		return tex_file;
 	}
 
 	public String[] getFrequentlyUsedCommands() {
@@ -165,6 +176,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public OutlineAdapter getOutlineAdapter() {
 		return outline_adapter;
+	}
+
+	public File getPdfFile() {
+		return pdf_file;
 	}
 
 	@Override
@@ -349,7 +364,8 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		FileWriter writer = new FileWriter(new_file, false);
 		writer.write(toString());
 		writer.close();
-		file = new_file;
+		// tex_file = new_file;
+		setFile(new_file);
 		is_modified = false;
 		if (watcher != null)
 			watcher.notifyDocumentStateChanged();
@@ -371,6 +387,50 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 
 	public void setCursor(int position) {
 		Selection.setSelection(this, position);
+	}
+
+	void setFile(File file) {
+		tex_file = file;
+
+		if (tex_file == null) {
+			if (src_dir_observer != null)
+				src_dir_observer.stopWatching();
+			return;
+		}
+
+		File dir = tex_file.getParentFile();
+		String name = tex_file.getName();
+		if (name.endsWith(".tex") || name.endsWith(".ltx")) {
+
+			String basename = name.substring(0, name.length() - 4);
+			pdf_file = new File(dir, basename + ".pdf");
+			log_file = new File(dir, basename + ".log");
+			log_file_name = log_file.getName();
+			pdf_file_name = pdf_file.getName();
+		}
+
+		if (pdf_file != null && pdf_file.exists())
+			watcher.loadPdf(pdf_file);
+
+		if (log_file != null && log_file.exists())
+			watcher.loadLog(log_file);
+
+		// Monitor changes to the the directory
+		if (src_dir_observer != null)
+			src_dir_observer.stopWatching();
+		src_dir_observer = new FileObserver(dir.getAbsolutePath(), FileObserver.CLOSE_WRITE) {
+
+			@Override
+			public void onEvent(int event, String path) {
+				if (path == null)
+					return;
+				if (log_file_name != null && path.equals(log_file_name))
+					watcher.loadLog(log_file);
+				if (pdf_file_name != null && path.equals(pdf_file_name))
+					watcher.loadPdf(pdf_file);
+			}
+		};
+		src_dir_observer.startWatching();
 	}
 
 	public void setSelection(int start, int end) {
@@ -399,6 +459,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	}
 
 	public interface DocumentWatcher {
+
+		void loadLog(File log_file);
+
+		void loadPdf(File pdf_file);
 
 		void notifyDocumentStateChanged();
 

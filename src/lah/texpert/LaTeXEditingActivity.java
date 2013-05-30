@@ -26,7 +26,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.FileObserver;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
@@ -70,7 +69,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	static final boolean DEBUG = false;
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
-	static final String DEBUG_FILE = "texbook.tex"; // "sample.tex";
+	static final String DEBUG_FILE = "sample.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -136,8 +135,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	ListView outline_listview;
 
 	private AlertDialog overwrite_confirm_dialog;
-
-	private File pdf_file;
 
 	private PdfViewFragment pdf_view_fragment;
 
@@ -221,6 +218,18 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		}
 		view.setText(text);
 		return view;
+	}
+
+	@Override
+	public void loadLog(File log_file) {
+		// TODO make more efficient
+		log_fragment.loadLog(log_file);
+	}
+
+	@Override
+	public void loadPdf(File pdf_file) {
+		// TODO make more efficient
+		pdf_view_fragment.loadPdf(pdf_file);
 	}
 
 	@Override
@@ -320,6 +329,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		case R.id.action_bibtex:
 			return compile(true);
 		case R.id.action_open_pdf:
+			File pdf_file = current_document.getPdfFile();
 			if (pdf_file != null && pdf_file.exists()) {
 				try {
 					startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.fromFile(pdf_file),
@@ -525,14 +535,14 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		if (file != null) {
 			String name = file.getName();
 			if (name.endsWith(".tex") || name.endsWith(".ltx")) {
-				File dir = file.getParentFile();
-				String basename = name.substring(0, name.length() - 4);
-				log_fragment.startTrackingLogFile(new File(dir, basename + ".log"));
-				pdf_file = new File(dir, basename + ".pdf");
+				// File dir = file.getParentFile();
+				// String basename = name.substring(0, name.length() - 4);
+				// log_fragment.startTrackingLogFile(new File(dir, basename + ".log"));
+				// pdf_file = new File(dir, basename + ".pdf");
 			}
 		} else {
-			log_fragment.stopTracking();
-			pdf_file = null;
+			// log_fragment.stopTracking();
+			// pdf_file = null;
 		}
 		updateActionBar();
 	}
@@ -675,25 +685,15 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return fragment;
 		}
 
-		/**
-		 * Log file to bind to
-		 */
-		private File log_file;
-
-		private String log_file_name;
-
 		private TextView log_textview;
-
-		/**
-		 * Observers to watch for changes in the source directory
-		 */
-		private FileObserver src_dir_observer;
 
 		public LogViewFragment() {
 			// Required empty public constructor
 		}
 
-		void loadLog() {
+		void loadLog(File log_file) {
+			if (getView() == null || (log_textview = (TextView) getView().findViewById(R.id.log_textview)) == null)
+				return;
 			final byte[] buffer = new byte[(int) log_file.length()];
 			try {
 				InputStream str = new FileInputStream(log_file);
@@ -736,51 +736,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return view;
 		}
 
-		public void startTrackingLogFile(File log_file) {
-			if (log_file == null)
-				return;
-
-			this.log_file = log_file;
-			log_file_name = log_file.getName();
-
-			if (log_file.exists())
-				loadLog();
-			else
-				log_textview.post(new Runnable() {
-
-					@Override
-					public void run() {
-						log_textview.setText("");
-					}
-				});
-
-			// Monitor changes to the the directory
-			if (src_dir_observer != null)
-				src_dir_observer.stopWatching();
-			src_dir_observer = new FileObserver(log_file.getParent(), FileObserver.CLOSE_WRITE) {
-
-				@Override
-				public void onEvent(int event, String path) {
-					// log file is overwritten by external process ==> reload
-					// the log
-					if (path != null && log_file_name != null && path.equals(log_file_name))
-						loadLog();
-				}
-			};
-			src_dir_observer.startWatching();
-		}
-
-		public void stopTracking() {
-			if (src_dir_observer != null)
-				src_dir_observer.stopWatching();
-			log_textview.post(new Runnable() {
-
-				@Override
-				public void run() {
-					log_textview.setText("");
-				}
-			});
-		}
 	}
 
 	class OpenDocumentTask extends AsyncTask<File, Void, String> {
@@ -810,6 +765,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				inpstr.close();
 				return result;
 			} catch (Exception e) {
+				e.printStackTrace(System.out);
 				getActivity().runOnUiThread(notify_open_document_error);
 			}
 			return null;
@@ -936,33 +892,37 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return fragment;
 		}
 
-		private MuPDF mupdf;
+		private File pdf_to_load_on_visible;
+
+		private UniformPageSizePDFDocumentView pdf_view;
 
 		public PdfViewFragment() {
 			// Required empty public constructor
 		}
 
+		public void loadPdf(File pdf_file) {
+			if (isVisible() && pdf_view != null) {
+				pdf_to_load_on_visible = null;
+				pdf_view.setDisplayPDF(pdf_file.getAbsolutePath());
+			} else
+				pdf_to_load_on_visible = pdf_file;
+		}
+
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 			// Inflate the layout for this fragment
-			View view = inflater.inflate(R.layout.fragment_pdf_view, container, false);
-			ListView pdf_content_list = (ListView) view.findViewById(R.id.pdf_content);
-			try {
-				String testfile = Environment.getExternalStorageDirectory().getPath() + "/sample.pdf";
-				mupdf = new MuPDF(testfile);
-				pdf_content_list.setAdapter(new MuPDFPageAdapter(getActivity(), mupdf));
-			} catch (Exception e) {
-				e.printStackTrace(System.out);
-			}
-			return view;
+			// View view = inflater.inflate(R.layout.fragment_pdf_view, container, false);
+			pdf_view = new UniformPageSizePDFDocumentView(getActivity());
+			if (pdf_to_load_on_visible != null)
+				pdf_view.setDisplayPDF(pdf_to_load_on_visible.getAbsolutePath());
+			return pdf_view;
 		}
 
 		@Override
 		public void onDetach() {
 			super.onDetach();
-			if (mupdf != null)
-				mupdf.onDestroy();
-			mupdf = null;
+			if (pdf_view != null)
+				pdf_view.release();
 		}
 
 	}

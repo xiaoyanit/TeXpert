@@ -10,11 +10,16 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="@string/document_outline" />
+        android:text="@string/document_outline"
+        android:textColor="@android:color/white"
+        android:textStyle="bold" />
 
     <ListView
         android:id="@+id/document_outline"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:layout_marginRight="5dp"
+        android:layout_marginTop="5dp"
+        android:background="@android:color/background_light" />
 
 </LinearLayout>
