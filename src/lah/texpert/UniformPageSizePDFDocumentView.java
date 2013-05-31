@@ -10,10 +10,13 @@ import android.graphics.PointF;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
-import android.widget.Toast;
 
 /**
- * A modified version of MuPDFCore class: class name is simplified to MuPDF, several methods are dropped.
+ * A modified version of MuPDFCore class:
+ * <ul>
+ * <li>Shorten class name <b>MuPDFCore</b> to simply <b>MuPDF</b></li>
+ * <li>Drop unused methods such as those dealing with texts, searching, etc.</li>
+ * </ul>
  * 
  * @author L.A.H.
  * @date 28 May 2013
@@ -95,8 +98,10 @@ class MuPDF {
 
 /**
  * A simple {@link View} to display PDF document. The document to be display must have <b>identical sizes for all
- * pages</b>. When the view is not in used, client should call {@link #release()} to free the resources. On the other
- * hand, it is probably preferable to hide the soft input method when this view is shown.
+ * pages</b>. When the view is not in used, client should call {@link #release()} to free the resources. <br />
+ * 
+ * <b>Remark:</b> It is probably preferable to hide the soft input method when this view is shown but this is the
+ * responsibility of the client to do that.
  * 
  * @author L.A.H.
  * 
@@ -115,18 +120,23 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 
 	private int num_pages;
 
-	private float page_width = -1, page_height = -1, total_page_height_with_gap = -1;
+	private float page_width, page_height;
+
+	private float total_document_height;
 
 	public UniformPageSizePDFDocumentView(Context context) {
 		super(context);
+		page_width = page_height = -1;
 	}
 
 	public UniformPageSizePDFDocumentView(Context context, AttributeSet attrs) {
 		super(context, attrs);
+		page_width = page_height = -1;
 	}
 
 	public UniformPageSizePDFDocumentView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
+		page_width = page_height = -1;
 	}
 
 	@Override
@@ -150,7 +160,7 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		// Restrict the position of the viewport
 		// TODO Allow for infinite-size navigation area
 		float max_viewport_x = page_width - viewport_width / zf;
-		float max_viewport_y = total_page_height_with_gap - (viewport_height / zf);
+		float max_viewport_y = total_document_height - (viewport_height / zf);
 		setViewportX(Math.min(max_viewport_x, getViewportX()));
 		setViewportY(Math.min(max_viewport_y, getViewportY()));
 
@@ -219,8 +229,7 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		}
 		switch (MeasureSpec.getMode(heightMeasureSpec)) {
 		case MeasureSpec.UNSPECIFIED:
-			mh = page_height > 0 ? (int) (total_page_height_with_gap) : MeasureSpec
-					.getSize(heightMeasureSpec);
+			mh = page_height > 0 ? (int) (total_document_height) : MeasureSpec.getSize(heightMeasureSpec);
 			break;
 		default:
 			mh = MeasureSpec.getSize(heightMeasureSpec);
@@ -238,15 +247,13 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		mupdf = null;
 	}
 
-	public void setDisplayPDF(String path_to_pdf) {
+	public void setDisplayPDF(String path_to_pdf) throws Exception {
 		release();
 		try {
 			mupdf = new MuPDF(path_to_pdf);
 		} catch (Exception e) {
-			e.printStackTrace(System.out);
 			mupdf = null;
-			Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-			return;
+			throw e;
 		}
 
 		if ((num_pages = mupdf.countPages()) == 0)
@@ -258,7 +265,7 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		PointF page_size = mupdf.getPageSize(0);
 		page_width = page_size.x;
 		page_height = page_size.y;
-		total_page_height_with_gap = page_height * num_pages + PAGE_GAP * (num_pages - 1);
+		total_document_height = page_height * num_pages + PAGE_GAP * (num_pages - 1);
 
 		// The following code is for general case
 		// page_sizes = new PointF[mupdf.countPages()];

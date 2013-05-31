@@ -11,7 +11,6 @@ import lah.texpert.LaTeXStringBuilder.DocumentWatcher;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
@@ -220,6 +219,11 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		}
 		view.setText(text);
 		return view;
+	}
+
+	void hideSoftKeyboard() {
+		InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+		imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
 	}
 
 	@Override
@@ -905,7 +909,13 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		public void loadPdf(File pdf_file) {
 			if (isVisible() && pdf_view != null) {
 				pdf_to_load_on_visible = null;
-				pdf_view.setDisplayPDF(pdf_file.getAbsolutePath());
+				try {
+					pdf_view.setDisplayPDF(pdf_file.getAbsolutePath());
+				} catch (Exception e) {
+					if (DEBUG)
+						e.printStackTrace(System.out);
+					Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
+				}
 			} else
 				pdf_to_load_on_visible = pdf_file;
 		}
@@ -913,11 +923,19 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 			// Inflate the layout for this fragment
-			// View view = inflater.inflate(R.layout.fragment_pdf_view, container, false);
-			pdf_view = new UniformPageSizePDFDocumentView(getActivity());
-			if (pdf_to_load_on_visible != null)
-				pdf_view.setDisplayPDF(pdf_to_load_on_visible.getAbsolutePath());
-			return pdf_view;
+			View view = inflater.inflate(R.layout.fragment_pdf_view, container, false);
+			pdf_view = (UniformPageSizePDFDocumentView) view.findViewById(R.id.pdf_content);
+			if (pdf_to_load_on_visible != null) {
+				try {
+					pdf_view.setDisplayPDF(pdf_to_load_on_visible.getAbsolutePath());
+					pdf_to_load_on_visible = null;
+				} catch (Exception e) {
+					if (DEBUG)
+						e.printStackTrace(System.out);
+					Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
+				}
+			}
+			return view;
 		}
 
 		@Override
@@ -931,9 +949,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		public void setUserVisibleHint(boolean isVisibleToUser) {
 			super.setUserVisibleHint(isVisibleToUser);
 			if (isVisibleToUser) {
-				Activity activity = getActivity();
-				InputMethodManager ime = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
-				ime.hideSoftInputFromWindow(activity.getCurrentFocus().getWindowToken(), 0);
+				((LaTeXEditingActivity) getActivity()).hideSoftKeyboard();
 			}
 		}
 
