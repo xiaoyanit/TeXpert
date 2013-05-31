@@ -11,6 +11,7 @@ import lah.texpert.LaTeXStringBuilder.DocumentWatcher;
 import lah.widgets.fileview.FileDialog;
 import lah.widgets.fileview.IFileSelectListener;
 import android.app.ActionBar;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
@@ -47,6 +48,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
@@ -69,7 +71,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	static final boolean DEBUG = false;
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
-	static final String DEBUG_FILE = "sample.tex";
+	static final String DEBUG_FILE = "lambda.tex"; // "sample.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -923,6 +925,16 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			super.onDetach();
 			if (pdf_view != null)
 				pdf_view.release();
+		}
+
+		@Override
+		public void setUserVisibleHint(boolean isVisibleToUser) {
+			super.setUserVisibleHint(isVisibleToUser);
+			if (isVisibleToUser) {
+				Activity activity = getActivity();
+				InputMethodManager ime = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+				ime.hideSoftInputFromWindow(activity.getCurrentFocus().getWindowToken(), 0);
+			}
 		}
 
 	}

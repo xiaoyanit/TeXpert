@@ -72,7 +72,6 @@ class MuPDF {
 
 	private native float getPageWidth();
 
-	/* Shim function */
 	private void gotoPage(int page) {
 		if (page > numPages - 1)
 			page = numPages - 1;
@@ -92,56 +91,12 @@ class MuPDF {
 
 	private native long openFile(String filename);
 
-	public synchronized Bitmap updatePage(BitmapHolder h, int page, int pageW, int pageH, int patchX, int patchY,
-			int patchW, int patchH) {
-		Bitmap bm = null;
-		Bitmap old_bm = h.getBm();
-
-		if (old_bm == null)
-			return null;
-
-		bm = old_bm.copy(Bitmap.Config.ARGB_8888, false);
-		old_bm = null;
-
-		updatePageInternal(bm, page, pageW, pageH, patchX, patchY, patchW, patchH);
-		return bm;
-	}
-
-	private native void updatePageInternal(Bitmap bitmap, int page, int pageW, int pageH, int patchX, int patchY,
-			int patchW, int patchH);
-
-}
-
-/**
- * Class is copied verbatim from MuPDF
- */
-class BitmapHolder {
-
-	private Bitmap bm;
-
-	public BitmapHolder() {
-		bm = null;
-	}
-
-	public synchronized void drop() {
-		bm = null;
-	}
-
-	public synchronized Bitmap getBm() {
-		return bm;
-	}
-
-	public synchronized void setBm(Bitmap abm) {
-		if (bm != null && bm != abm)
-			bm.recycle();
-		bm = abm;
-	}
-
 }
 
 /**
  * A simple {@link View} to display PDF document. The document to be display must have <b>identical sizes for all
- * pages</b>. When the view is not in used, client should call {@link #release()} to free the resources.
+ * pages</b>. When the view is not in used, client should call {@link #release()} to free the resources. On the other
+ * hand, it is probably preferable to hide the soft input method when this view is shown.
  * 
  * @author L.A.H.
  * 
@@ -152,11 +107,15 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 
 	private static final Matrix IDENTITY_MATRIX = new Matrix();
 
+	static final float PAGE_GAP = 20;
+
+	private static final String TAG = "Uniform Page Size PDF Document View";
+
 	private MuPDF mupdf;
 
 	private int num_pages;
 
-	private float page_width = -1, page_height = -1;
+	private float page_width = -1, page_height = -1, total_page_height_with_gap = -1;
 
 	public UniformPageSizePDFDocumentView(Context context) {
 		super(context);
@@ -177,18 +136,73 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 
 	@Override
 	protected synchronized void onDraw(Canvas canvas) {
-		super.onDraw(canvas);
+		// No PDF file to display or page metric not available
 		if (mupdf == null || page_width <= 0 || page_height <= 0)
 			return;
-		// determine visible pages and their visible regions
-		float zf = 2.0f;
-		int w = getWidth(), h = getHeight();
-		int px = (int) (getScrollX() * zf), py = (int) (getScrollY() * zf);
-		if (DEBUG)
-			Log.v("PdfView", "Scroll state : [" + px + " " + py + "]");
-		// render the pages into the canvas
-		canvas.drawBitmap(mupdf.drawPage(0, (int) (page_width * zf), (int) (page_height * zf), px, py, w, h),
-				IDENTITY_MATRIX, null);
+
+		// Determine visible pages and their visible regions
+		int viewport_width = getWidth();
+		int viewport_height = getHeight();
+		float zf = getZoomFactor();
+		int zoomed_page_width = (int) (page_width * zf);
+		int zoomed_page_height = (int) (page_height * zf);
+
+		// Restrict the position of the viewport
+		// TODO Allow for infinite-size navigation area
+		float max_viewport_x = page_width - viewport_width / zf;
+		float max_viewport_y = total_page_height_with_gap - (viewport_height / zf);
+		setViewportX(Math.min(max_viewport_x, getViewportX()));
+		setViewportY(Math.min(max_viewport_y, getViewportY()));
+
+		// Determine page containing the point (vpx, vpy)
+		float page_height_with_gap = page_height + PAGE_GAP;
+		int start_page = (int) (getViewportY() / page_height_with_gap);
+		if (DEBUG) {
+			Log.v(TAG, "Viewport: [" + viewport_X + "," + viewport_Y + "]");
+			Log.v(TAG, "First page to display = " + start_page);
+		}
+		if (start_page >= num_pages)
+			return;
+
+		// Get the patch area for the page containing viewport corner
+		int patch_width = (int) Math.min(viewport_width, (page_width - getViewportX()) * zf);
+		if (patch_width <= 0)
+			return;
+
+		int patch_x = (int) (getViewportX() * zf);
+		int patch_y = (int) ((getViewportY() - start_page * page_height_with_gap) * zf);
+		int patch_height = (int) Math.min(viewport_height,
+				(start_page * page_height_with_gap + page_height - getViewportY()) * zf);
+
+		// Paint consecutive pages until viewport is filled up or no more page
+		float rem_height = viewport_height;
+		canvas.save();
+		// TODO Take care of top/left paddings as well
+		// canvas.translate(getLeft(), getTop());
+		while (patch_height > 0 && start_page < num_pages) {
+			// Draw the page patch
+			if (DEBUG)
+				Log.v(TAG, "Draw patch [" + patch_x + "," + patch_y + "," + patch_width + "," + patch_height
+						+ "] of page " + start_page);
+			canvas.drawBitmap(mupdf.drawPage(start_page, zoomed_page_width, zoomed_page_height, patch_x, patch_y,
+					patch_width, patch_height), IDENTITY_MATRIX, null);
+
+			// Translate the canvas to draw next page
+			canvas.translate(0, patch_height + PAGE_GAP * zf);
+
+			start_page++;
+
+			// Update drawing metric for the next page
+			rem_height -= (patch_height + PAGE_GAP * zf);
+			if (DEBUG)
+				Log.v(TAG, "Remaining height = " + rem_height);
+
+			// After the first page is drawn, subsequent pages all start from top and goes as much as it can, up to
+			// remaining space and its height; all pages shared the same patch_x and patch_width though.
+			patch_y = 0;
+			patch_height = (int) Math.min(rem_height, zoomed_page_height);
+		}
+		canvas.restore();
 	}
 
 	@Override
@@ -205,21 +219,17 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		}
 		switch (MeasureSpec.getMode(heightMeasureSpec)) {
 		case MeasureSpec.UNSPECIFIED:
-			mh = page_height > 0 ? (int) (page_height * num_pages) : MeasureSpec.getSize(heightMeasureSpec);
+			mh = page_height > 0 ? (int) (total_page_height_with_gap) : MeasureSpec
+					.getSize(heightMeasureSpec);
 			break;
 		default:
 			mh = MeasureSpec.getSize(heightMeasureSpec);
 		}
-		// Log.v("onMeasure",
-		// "Measured size for spec [" + MeasureSpec.toString(widthMeasureSpec) + ","
-		// + MeasureSpec.toString(heightMeasureSpec) + "] = " + mw + "x" + mh);
+		if (DEBUG)
+			Log.v(TAG,
+					"Measured dimensions for spec [" + MeasureSpec.toString(widthMeasureSpec) + ","
+							+ MeasureSpec.toString(heightMeasureSpec) + "] = " + mw + "x" + mh);
 		setMeasuredDimension(mw, mh);
-	}
-
-	@Override
-	protected void onScrollChanged(int l, int t, int oldl, int oldt) {
-		super.onScrollChanged(l, t, oldl, oldt);
-		Log.v("PDFView", "onScrollChanged[" + l + "," + t + "," + oldl + "," + oldt);
 	}
 
 	public void release() {
@@ -248,6 +258,8 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		PointF page_size = mupdf.getPageSize(0);
 		page_width = page_size.x;
 		page_height = page_size.y;
+		total_page_height_with_gap = page_height * num_pages + PAGE_GAP * (num_pages - 1);
+
 		// The following code is for general case
 		// page_sizes = new PointF[mupdf.countPages()];
 		// float max_page_width = 0, total_doc_height = 0;
@@ -256,6 +268,7 @@ public class UniformPageSizePDFDocumentView extends AbstractZoomableScrollView {
 		// max_page_width = Math.max(max_page_width, page_sizes[i].x);
 		// total_doc_height += page_sizes[i].y;
 		// }
+
 		postInvalidate();
 	}
 
