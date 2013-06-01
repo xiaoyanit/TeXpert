@@ -1,3 +1,16 @@
+Version 1.3
+ * 
+
+Version 1.2
+ * Add in-app PDF viewer to provide true fully integrated writing experience
+    - Edit+compile+view within a single app (from user perspective; compile phase technically is done externally)
+    - "Open PDF" button is now under "File" menu: expect infrequent usage
+    - Viewer only handles PDF file whose pages are all of the same sizes: most LaTeX-compiled files are
+ * Display "floating" log when lower-right corner button is clicked
+    - Log is loaded lazily (i.e. on-demand) for efficiency
+ * Allow for screen rotation, horizontal orientation and more font size options (10-16)
+ * Various performance improvement and bug fixes
+
 Version 1.1
  * Fix: now work with both TeXPortal donate and free
  * Enhanced outline tracking (no more delay)
