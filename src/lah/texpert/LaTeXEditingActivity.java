@@ -70,7 +70,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	static final boolean DEBUG = false;
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
-	static final String DEBUG_FILE = "lambda.tex"; // "sample.tex";
+	static final String DEBUG_FILE = "sample.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -115,7 +115,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private FileDialog file_select_dialog;
 
-	private LogViewFragment log_fragment;
+	// private LogViewFragment log_fragment;
 
 	private ViewPager main_pager;
 
@@ -223,13 +223,15 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	void hideSoftKeyboard() {
 		InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-		imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+		if (imm != null && getCurrentFocus() != null)
+			imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
 	}
 
 	@Override
 	public void loadLog(File log_file) {
 		// TODO make more efficient
-		log_fragment.loadLog(log_file);
+		if (editor_fragment.log_fragment != null)
+			editor_fragment.log_fragment.loadLog(log_file);
 	}
 
 	@Override
@@ -253,7 +255,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		current_document = new LaTeXStringBuilder(this, "", null);
 		editor_fragment = EditorFragment.newInstance();
 		outline_fragment = OutlineFragment.newInstance(editor_fragment);
-		log_fragment = LogViewFragment.newInstance();
+		// log_fragment = LogViewFragment.newInstance();
 		pdf_view_fragment = PdfViewFragment.newInstance();
 		main_pager_adapter = new OutlineEditingLogPagerAdapter(getSupportFragmentManager());
 		main_pager = (ViewPager) findViewById(R.id.editor_log_pager);
@@ -571,6 +573,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 		public EditText document_textview;
 
+		LogViewFragment log_fragment;
+
 		private QuickAccessFragment quick_access_fragment;
 
 		public EditorFragment() {
@@ -616,6 +620,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				@Override
 				public void onClick(View arg0) {
 					// toggleQuickAccess();
+					toggleLogFragment();
 				}
 			});
 
@@ -635,7 +640,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			try {
 				document_textview.setTextSize(Integer.parseInt(font_size));
 			} catch (Exception e) {
-				document_textview.setTextSize(18);
+				document_textview.setTextSize(18); // default text size
 			}
 
 			// Update the font family
@@ -653,6 +658,19 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				document_textview.setText(document);
 				document.setView(document_textview);
 			}
+		}
+
+		public void toggleLogFragment() {
+			FragmentTransaction trans = getChildFragmentManager().beginTransaction();
+			if (log_fragment == null) {
+				log_fragment = LogViewFragment.newInstance();
+				trans.replace(R.id.log_fragment, log_fragment).commit();
+				return;
+			}
+			if (log_fragment.isVisible())
+				trans.hide(log_fragment).commit();
+			else
+				trans.show(log_fragment).commit();
 		}
 
 		public void toggleQuickAccess() {
@@ -684,29 +702,45 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 		private static final ForegroundColorSpan ERROR_STYLE = new ForegroundColorSpan(0xffff0000),
 				WARNING_STYLE = new ForegroundColorSpan(0xff00cc00), LINE_NUM_STYLE = new ForegroundColorSpan(
-						0xff0000cc);
+						0xff66ccff);
+
+		static final String TAG = "LogViewFragment";
 
 		public static LogViewFragment newInstance() {
 			LogViewFragment fragment = new LogViewFragment();
 			return fragment;
 		}
 
+		SpannableStringBuilder log_content;
+
 		private TextView log_textview;
+
+		private boolean reload_log_when_visible;
 
 		public LogViewFragment() {
 			// Required empty public constructor
 		}
 
-		void loadLog(File log_file) {
-			if (getView() == null || (log_textview = (TextView) getView().findViewById(R.id.log_textview)) == null)
+		synchronized void loadLog(File log_file) {
+			if (log_textview == null || !log_file.exists())
 				return;
+			if (!isVisible()) {
+				if (DEBUG)
+					Log.v(TAG, "loadLog : currently invisible, mark for reload");
+				reload_log_when_visible = true;
+				return;
+			}
 			final byte[] buffer = new byte[(int) log_file.length()];
 			try {
+				reload_log_when_visible = false;
 				InputStream str = new FileInputStream(log_file);
 				str.read(buffer);
 				str.close();
 				String logstr = new String(buffer, 0, buffer.length);
-				final SpannableStringBuilder log_content = new SpannableStringBuilder(logstr);
+				if (log_content == null)
+					log_content = new SpannableStringBuilder(logstr);
+				else
+					log_content.replace(0, log_content.length(), logstr);
 				Matcher error_matcher = error_pattern.matcher(logstr);
 				while (error_matcher.find()) {
 					log_content.setSpan(CharacterStyle.wrap(ERROR_STYLE), error_matcher.start(), error_matcher.end(),
@@ -726,6 +760,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 					@Override
 					public void run() {
+						if (DEBUG)
+							Log.v(TAG, "Update log in view");
 						log_textview.setText(log_content);
 					}
 				});
@@ -739,7 +775,21 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			// Inflate the layout for this fragment
 			View view = inflater.inflate(R.layout.fragment_log_view, container, false);
 			log_textview = (TextView) view.findViewById(R.id.log_textview);
+			reload_log_when_visible = true;
 			return view;
+		}
+
+		@Override
+		public void onResume() {
+			super.onResume();
+			if (reload_log_when_visible) {
+				File log_file = ((LaTeXEditingActivity) getActivity()).current_document.log_file;
+				if (log_file == null)
+					return;
+				if (DEBUG)
+					Log.v(TAG, "Load log file " + log_file.getAbsolutePath());
+				loadLog(log_file);
+			}
 		}
 
 	}
@@ -830,7 +880,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			case 2:
 				return pdf_view_fragment;
 			default:
-				return log_fragment;
+				return null; // log_fragment;
 			}
 		}
 
@@ -898,17 +948,19 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return fragment;
 		}
 
-		private File pdf_to_load_on_visible;
-
 		private UniformPageSizePDFDocumentView pdf_view;
+
+		private boolean reload_pdf_when_visible;
 
 		public PdfViewFragment() {
 			// Required empty public constructor
 		}
 
 		public void loadPdf(File pdf_file) {
-			if (isVisible() && pdf_view != null) {
-				pdf_to_load_on_visible = null;
+			if (isVisible()) {
+				if (pdf_view == null)
+					return;
+				reload_pdf_when_visible = false;
 				try {
 					pdf_view.setDisplayPDF(pdf_file.getAbsolutePath());
 				} catch (Exception e) {
@@ -917,7 +969,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 					Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
 			} else
-				pdf_to_load_on_visible = pdf_file;
+				reload_pdf_when_visible = true;
 		}
 
 		@Override
@@ -925,16 +977,6 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			// Inflate the layout for this fragment
 			View view = inflater.inflate(R.layout.fragment_pdf_view, container, false);
 			pdf_view = (UniformPageSizePDFDocumentView) view.findViewById(R.id.pdf_content);
-			if (pdf_to_load_on_visible != null) {
-				try {
-					pdf_view.setDisplayPDF(pdf_to_load_on_visible.getAbsolutePath());
-					pdf_to_load_on_visible = null;
-				} catch (Exception e) {
-					if (DEBUG)
-						e.printStackTrace(System.out);
-					Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
-				}
-			}
 			return view;
 		}
 
@@ -950,6 +992,9 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			super.setUserVisibleHint(isVisibleToUser);
 			if (isVisibleToUser) {
 				((LaTeXEditingActivity) getActivity()).hideSoftKeyboard();
+				File pdf_file = ((LaTeXEditingActivity) getActivity()).current_document.pdf_file;
+				if (reload_pdf_when_visible && pdf_file != null && pdf_file.exists())
+					loadPdf(pdf_file);
 			}
 		}
 

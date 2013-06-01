@@ -1,63 +1,73 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     tools:context=".LaTeXEditingActivity.EditorFragment" >
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dip"
-        android:layout_weight="1" >
+        android:layout_height="match_parent"
+        android:orientation="vertical" >
 
-        <!-- Quick access/navigation -->
-
-        <FrameLayout
-            android:id="@+id/quick_access_fragment"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent" />
-
-        <!-- Editing area: note that we need to force using software layer i.e. disable hardware rendering -->
-
-        <EditText
-            android:id="@+id/document_area"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/textarea_background"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:gravity="top"
-            android:hint=""
-            android:inputType="textMultiLine|textNoSuggestions"
-            android:layerType="software"
-            android:saveEnabled="false"
-            android:scrollbars="vertical" />
+            android:layout_height="0dip"
+            android:layout_weight="1" >
+
+            <!-- Quick access/navigation -->
+
+            <FrameLayout
+                android:id="@+id/quick_access_fragment"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent" />
+
+            <!-- Editing area: note that we need to force using software layer i.e. disable hardware rendering -->
+
+            <EditText
+                android:id="@+id/document_area"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/textarea_background"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:gravity="top"
+                android:hint=""
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:layerType="software"
+                android:saveEnabled="false"
+                android:scrollbars="vertical" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" >
+
+            <!-- Button to toggle the quick access -->
+
+            <ImageButton
+                android:id="@+id/quick_access_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginRight="5dp"
+                android:background="@android:color/holo_blue_dark"
+                android:contentDescription="@string/action_toggle_quick_access"
+                android:src="@drawable/ic_quick_access" />
+
+            <!-- Grid of special symbols -->
+
+            <GridView
+                android:id="@+id/special_symbols_grid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:background="@android:color/background_light" />
+        </LinearLayout>
     </LinearLayout>
 
-    <LinearLayout
+    <FrameLayout
+        android:id="@+id/log_fragment"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" >
+        android:layout_height="wrap_content" />
 
-        <!-- Button to toggle the quick access -->
-
-        <ImageButton
-            android:id="@+id/quick_access_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginRight="5dp"
-            android:background="@android:color/holo_blue_dark"
-            android:contentDescription="@string/action_toggle_quick_access"
-            android:src="@drawable/ic_quick_access" />
-
-        <!-- Grid of special symbols -->
-
-        <GridView
-            android:id="@+id/special_symbols_grid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:background="@android:color/background_light" />
-    </LinearLayout>
-
-</LinearLayout>
+</FrameLayout>

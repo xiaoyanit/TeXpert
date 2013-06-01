@@ -364,7 +364,6 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		FileWriter writer = new FileWriter(new_file, false);
 		writer.write(toString());
 		writer.close();
-		// tex_file = new_file;
 		setFile(new_file);
 		is_modified = false;
 		if (watcher != null)
@@ -401,12 +400,15 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		File dir = tex_file.getParentFile();
 		String name = tex_file.getName();
 		if (name.endsWith(".tex") || name.endsWith(".ltx")) {
-
 			String basename = name.substring(0, name.length() - 4);
 			pdf_file = new File(dir, basename + ".pdf");
 			log_file = new File(dir, basename + ".log");
 			log_file_name = log_file.getName();
 			pdf_file_name = pdf_file.getName();
+			if (LaTeXEditingActivity.DEBUG) {
+				Log.v("LSB", "PDF file: " + pdf_file.getAbsolutePath());
+				Log.v("LSB", "Log file: " + log_file.getAbsolutePath());
+			}
 		}
 
 		if (pdf_file != null && pdf_file.exists())

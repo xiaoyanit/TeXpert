@@ -7,12 +7,6 @@
         android:showAsAction="always"
         android:title="@string/action_pdflatex"/>
     <item
-        android:id="@+id/action_open_pdf"
-        android:icon="@drawable/ic_action_openpdf"
-        android:orderInCategory="2"
-        android:showAsAction="always"
-        android:title="@string/action_open_pdf"/>
-    <item
         android:icon="@drawable/ic_action_edit"
         android:orderInCategory="3"
         android:showAsAction="always"
@@ -55,6 +49,10 @@
                 android:id="@+id/action_save"
                 android:icon="@drawable/ic_action_save"
                 android:title="@string/action_save"/>
+            <item
+                android:id="@+id/action_open_pdf"
+                android:icon="@drawable/ic_action_openpdf"
+                android:title="@string/action_open_pdf"/>
             <item
                 android:id="@+id/action_bibtex"
                 android:icon="@drawable/ic_action_portal"

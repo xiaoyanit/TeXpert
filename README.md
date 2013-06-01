@@ -5,8 +5,7 @@ LaTeX document preparation app for Android
 
 Donate version is now available on [Play store][0]. To build it from source, see instruction at the end of the file.
 
-This app aims to be a TeX document development environment application like
-TeXMaker or TeXworks on PC.
+TeXpert aims not only to be a TeX document development environment application like its counter parts TeXMaker or TeXworks on PC but also to provide a better experience on mobile TeX editing.
 
 Features
 --------
@@ -94,10 +93,10 @@ Build Instruction
 
  * Compile [MuPDF][6] library:
     - Modified files are in `mupdf/` subdirectory. Main changes are:
-       * Append `LOCAL_CFLAGS` with `-DNOCJK -DNODROIDFONT` and remove XPS/CBZ-related source in `android/jni/Core.mk`
-       * Various tweaks to `Application.mk` following optimization tips from http://blog.algolia.com/android-ndk-how-to-reduce-libs-size/
-       * Simplify implementations of functions `fz_open_document` and `fz_open_document_with_stream` in `fitz/doc_document.c`: remove XPS/CBZ handling & related `extern` functions
-       * Change package, remove unused functions in `android/jni/mupdf.c`
+       * File `fitz/doc_document.c`        : Remove XPS/CBZ consideration & dependent extern functions in `fz_open_document` and `fz_open_document_with_stream`
+       * File `android/jni/Application.mk` : Various tweaks following optimization tips from http://blog.algolia.com/android-ndk-how-to-reduce-libs-size/
+       * File `android/jni/Core.mk`        : Append `LOCAL_CFLAGS` line with `-DNOCJK -DNODROIDFONT` and remove XPS/CBZ-related source
+       * File `android/jni/mupdf.c`        : Change package to `lah.texpert`, remove unused functions and simplify some of them
     - Follow the build instruction of MuPDF i.e. execute `make generate` and then `ndk-build` in the `android/`. The shared libraries are in `android/libs/`. Just copy them to TeXpert.
     - **Note**: All directories mentioned here are relative to root of extracted MuPDF source package.
  * Clone my projects [LAHIndex][7] and [LAHWidgets][8]

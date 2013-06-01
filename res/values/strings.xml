@@ -50,6 +50,10 @@
     <string name="pref_title_backup_on_suspend">Backup on suspend</string>
 
     <string-array name="font_sizes">
+        <item>10</item>
+        <item>12</item>
+        <item>14</item>
+        <item>16</item>
         <item>18</item>
         <item>20</item>
         <item>24</item>
