@@ -67,10 +67,10 @@ import android.widget.ViewSwitcher;
  */
 public class LaTeXEditingActivity extends FragmentActivity implements DocumentWatcher {
 
-	static final boolean DEBUG = false;
+	static final boolean DEBUG = true;
 
 	// "testlatex.tex"; // "texbook.tex"; // "lambda.tex";
-	static final String DEBUG_FILE = "sample.tex";
+	static final String DEBUG_FILE = "lambda.tex"; // "sample.tex";
 
 	static final String PREF_AUTOSAVE_BEFORE_COMPILE = "autosave_before_compile",
 			PREF_LAST_OPEN_FILE = "last_open_file", PREF_AUTOSAVE_ON_SUSPEND = "autosave_on_suspend";
@@ -106,6 +106,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		}
 	};
 
+	public LaTeXStringBuilder master_document;
+
 	public LaTeXStringBuilder current_document;
 
 	private String[] displayed_document_classes = { "Blank", "Article", "AMS Article", "Beamer" }, document_classes = {
@@ -115,11 +117,9 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private FileDialog file_select_dialog;
 
-	// private LogViewFragment log_fragment;
-
 	private ViewPager main_pager;
 
-	private OutlineEditingLogPagerAdapter main_pager_adapter;
+	private OutlineEditingPagerAdapter main_pager_adapter;
 
 	private final Runnable notify_open_document_error = new Runnable() {
 
@@ -186,12 +186,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private boolean compile(boolean is_bibtex) {
 		Runnable compile_document = is_bibtex ? compile_document_bibtex : compile_document_pdflatex;
-		if (current_document.getFile() == null)
+		if (master_document.getFile() == null)
 			return showSaveAsDialog(compile_document, null);
-		if (current_document.isModified()) {
+		if (master_document.isModified()) {
 			if (pref.getBoolean(PREF_AUTOSAVE_BEFORE_COMPILE, false))
 				try {
-					current_document.save(current_document.getFile(), compile_document);
+					master_document.save(master_document.getFile(), compile_document);
 				} catch (Exception e) {
 					showToast(R.string.message_cannot_save_document);
 					e.printStackTrace(System.out);
@@ -252,12 +252,11 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		setContentView(R.layout.activity_latex_editing);
 
 		// Setup the main pager
-		current_document = new LaTeXStringBuilder(this, "", null);
+		master_document = new LaTeXStringBuilder(this, "", null);
 		editor_fragment = EditorFragment.newInstance();
 		outline_fragment = OutlineFragment.newInstance(editor_fragment);
-		// log_fragment = LogViewFragment.newInstance();
 		pdf_view_fragment = PdfViewFragment.newInstance();
-		main_pager_adapter = new OutlineEditingLogPagerAdapter(getSupportFragmentManager());
+		main_pager_adapter = new OutlineEditingPagerAdapter(getSupportFragmentManager());
 		main_pager = (ViewPager) findViewById(R.id.editor_log_pager);
 		main_pager.setAdapter(main_pager_adapter);
 		main_pager.setCurrentItem(1);
@@ -330,14 +329,13 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			return true;
 		case R.id.action_save:
 			// Untitled document --> ask user to select the file to save as
-			return (current_document.getFile() == null ? showSaveAsDialog(null, null)
-					: showConfirmOverwriteDialog(null));
+			return (master_document.getFile() == null ? showSaveAsDialog(null, null) : showConfirmOverwriteDialog(null));
 		case R.id.action_pdflatex:
 			return compile(false);
 		case R.id.action_bibtex:
 			return compile(true);
 		case R.id.action_open_pdf:
-			File pdf_file = current_document.getPdfFile();
+			File pdf_file = master_document.getPdfFile();
 			if (pdf_file != null && pdf_file.exists()) {
 				try {
 					startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.fromFile(pdf_file),
@@ -349,7 +347,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 				showToast(R.string.info_no_pdf_to_open);
 			return true;
 		case R.id.action_undo:
-			return current_document.undoLastEdit();
+			return master_document.undoLastEdit();
 		case R.id.action_search:
 			return startSearchMode();
 		case R.id.action_format:
@@ -371,8 +369,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		super.onPause();
 		if (open_document_task != null)
 			open_document_task.cancel(true);
-		if (current_document != null && current_document.getFile() != null)
-			pref.edit().putString(PREF_LAST_OPEN_FILE, current_document.getFile().getAbsolutePath()).commit();
+		if (master_document != null && master_document.getFile() != null)
+			pref.edit().putString(PREF_LAST_OPEN_FILE, master_document.getFile().getAbsolutePath()).commit();
 	}
 
 	private void openDocument(File file) {
@@ -396,7 +394,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			} catch (NameNotFoundException e) {
 				comp = TEXPORTAL;
 			}
-			startActivityForResult(new Intent().setComponent(comp).setData(Uri.fromFile(current_document.getFile()))
+			startActivityForResult(new Intent().setComponent(comp).setData(Uri.fromFile(master_document.getFile()))
 					.putExtra(TEXPORTAL_ARGUMENT_ENGINE, engine), 0);
 		} catch (ActivityNotFoundException e) {
 			showToast(R.string.message_cannot_send_texportal);
@@ -404,13 +402,13 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	}
 
 	private void setCurrentDocument(LaTeXStringBuilder document) {
-		current_document = document;
-		editor_fragment.setDocument(current_document);
+		master_document = document;
+		editor_fragment.setDocument(master_document);
 		updateFileInfo();
 	}
 
 	private boolean showCleanupDialog() {
-		File file = current_document.getFile();
+		File file = master_document.getFile();
 		if (file != null) {
 			String name = file.getName();
 			final String basename = name.substring(0, name.length() - 4);
@@ -449,7 +447,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	}
 
 	private boolean showConfirmOverwriteDialog(final Runnable action_after_overwrite) {
-		if (current_document == null)
+		if (master_document == null)
 			return true;
 		if (overwrite_confirm_dialog == null)
 			overwrite_confirm_dialog = new AlertDialog.Builder(this)
@@ -459,7 +457,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							try {
-								current_document.save(current_document.getFile(), action_after_overwrite);
+								master_document.save(master_document.getFile(), action_after_overwrite);
 							} catch (Exception e) {
 								showToast(R.string.message_cannot_save_document);
 								e.printStackTrace(System.out);
@@ -477,8 +475,8 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 	private boolean showNewDocumentDialog() {
 		Runnable action = show_new_doc_options;
-		if (current_document.isModified())
-			if (current_document.getFile() == null)
+		if (master_document.isModified())
+			if (master_document.getFile() == null)
 				showSaveAsDialog(action, action);
 			else
 				showConfirmOverwriteDialog(action);
@@ -496,7 +494,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 					@Override
 					public void onClick(DialogInterface arg0, int arg1) {
 						try {
-							current_document.save(new File(file_path_field.getText().toString()), action_after_save);
+							master_document.save(new File(file_path_field.getText().toString()), action_after_save);
 						} catch (Exception e) {
 							showToast(R.string.message_cannot_save_document);
 							e.printStackTrace(System.out);
@@ -532,14 +530,14 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	}
 
 	private void updateActionBar() {
-		if (current_document.getFile() != null)
-			action_bar.setSubtitle(current_document.getFile().getName() + (current_document.isModified() ? "*" : ""));
+		if (master_document.getFile() != null)
+			action_bar.setSubtitle(master_document.getFile().getName() + (master_document.isModified() ? "*" : ""));
 		else
-			action_bar.setSubtitle("untitled" + (current_document.isModified() ? "*" : ""));
+			action_bar.setSubtitle("untitled" + (master_document.isModified() ? "*" : ""));
 	}
 
 	private void updateFileInfo() {
-		File file = current_document.getFile();
+		File file = master_document.getFile();
 		if (file != null) {
 			String name = file.getName();
 			if (name.endsWith(".tex") || name.endsWith(".ltx")) {
@@ -597,7 +595,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-					activity.current_document.replaceSelection(special_symbols[position]);
+					activity.master_document.replaceSelection(special_symbols[position]);
 				}
 			});
 
@@ -607,10 +605,10 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 				@Override
 				public Editable newEditable(CharSequence source) {
-					return activity.current_document;
+					return activity.master_document;
 				}
 			});
-			document_textview.setText(activity.current_document);
+			document_textview.setText(activity.master_document);
 			// document_textview.setMovementMethod(LinkMovementMethod.getInstance());
 
 			// Prepare button to access navigation/insertion
@@ -783,7 +781,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		public void onResume() {
 			super.onResume();
 			if (reload_log_when_visible) {
-				File log_file = ((LaTeXEditingActivity) getActivity()).current_document.log_file;
+				File log_file = ((LaTeXEditingActivity) getActivity()).master_document.getLogFile();
 				if (log_file == null)
 					return;
 				if (DEBUG)
@@ -815,7 +813,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 
 				// Indexing for syntax highlight
 				t = System.currentTimeMillis();
-				current_document = new LaTeXStringBuilder((LaTeXEditingActivity) getActivity(), result, file);
+				master_document = new LaTeXStringBuilder((LaTeXEditingActivity) getActivity(), result, file);
 				if (DEBUG)
 					Log.v(TAG, "Indexing takes " + (System.currentTimeMillis() - t) + "ms");
 				inpstr.close();
@@ -831,12 +829,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 		protected void onPostExecute(String result) {
 			long t = System.currentTimeMillis();
 			if (result != null) {
-				setCurrentDocument(current_document);
+				setCurrentDocument(master_document);
 				if (DEBUG)
 					Log.v(TAG, "setText takes " + (System.currentTimeMillis() - t) + "ms");
 				// FIXME Need to set the outline adapter for the outline list view here!
 				if (outline_listview != null)
-					outline_listview.setAdapter(current_document.getOutlineAdapter());
+					outline_listview.setAdapter(master_document.getOutlineAdapter());
 			}
 			t = System.currentTimeMillis();
 			state_switcher.showPrevious();
@@ -859,9 +857,9 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 	 * @author L.A.H.
 	 * 
 	 */
-	public class OutlineEditingLogPagerAdapter extends FragmentPagerAdapter {
+	public class OutlineEditingPagerAdapter extends FragmentPagerAdapter {
 
-		public OutlineEditingLogPagerAdapter(FragmentManager fm) {
+		public OutlineEditingPagerAdapter(FragmentManager fm) {
 			super(fm);
 		}
 
@@ -921,12 +919,12 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			View view = inflater.inflate(R.layout.fragment_outline, container, false);
 			LaTeXEditingActivity activity = (LaTeXEditingActivity) getActivity();
 			activity.outline_listview = (ListView) view.findViewById(R.id.document_outline);
-			activity.outline_listview.setAdapter(activity.current_document.getOutlineAdapter());
+			activity.outline_listview.setAdapter(activity.master_document.getOutlineAdapter());
 			activity.outline_listview.setOnItemClickListener(new OnItemClickListener() {
 
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-					LaTeXStringBuilder doc = ((LaTeXEditingActivity) getActivity()).current_document;
+					LaTeXStringBuilder doc = ((LaTeXEditingActivity) getActivity()).master_document;
 					doc.setCursor(doc.getOutlineAdapter().getItem(position).getTextPosition());
 				}
 			});
@@ -992,7 +990,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			super.setUserVisibleHint(isVisibleToUser);
 			if (isVisibleToUser) {
 				((LaTeXEditingActivity) getActivity()).hideSoftKeyboard();
-				File pdf_file = ((LaTeXEditingActivity) getActivity()).current_document.pdf_file;
+				File pdf_file = ((LaTeXEditingActivity) getActivity()).master_document.pdf_file;
 				if (reload_pdf_when_visible && pdf_file != null && pdf_file.exists())
 					loadPdf(pdf_file);
 			}
@@ -1042,7 +1040,7 @@ public class LaTeXEditingActivity extends FragmentActivity implements DocumentWa
 			case R.id.menu_search:
 				String search_pattern = search_pattern_edittext.getText().toString();
 				boolean regex = mode.getMenu().findItem(R.id.menu_search_with_regex).isChecked();
-				current_document.search(search_pattern, regex);
+				master_document.search(search_pattern, regex);
 				return true;
 				// case R.id.menu_replace:
 				// return true;

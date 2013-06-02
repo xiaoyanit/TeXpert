@@ -17,12 +17,15 @@ import lah.index.latex.NonEscapedSpecialCharsIndexer;
 import lah.index.latex.RefsIndexer;
 import lah.index.latex.SectionIndexer;
 import android.content.Context;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.os.FileObserver;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.TextPaint;
 import android.text.style.CharacterStyle;
 import android.text.style.ClickableSpan;
+import android.text.style.MetricAffectingSpan;
 import android.text.style.UpdateAppearance;
 import android.util.Log;
 import android.view.View;
@@ -169,6 +172,10 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 		return null;
 	}
 
+	public File getLogFile() {
+		return log_file;
+	}
+
 	public String[] getNewCommands() {
 		// TODO Implement
 		return null;
@@ -186,18 +193,19 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	public int getSpanEnd(Object what) {
 		if (what instanceof TeXTokenSpan) {
 			TeXTokenSpan ttsp = (TeXTokenSpan) what;
-			int position = ttsp.getPosition();
+			int position = ttsp.getTokenPosition();
 			int len = length();
-			// If this span is for a line comment
-			if (ttsp.isComment()) {
+
+			switch (ttsp.getFlagTokenType()) {
+			case TeXTokenSpan.FLAG_CONTROL_SEQUENCE:
+				return CSUtils.getEndOfControlSequenceAt(this, position);
+			case TeXTokenSpan.FLAG_COMMENT:
 				int nearest_linefeed = newline_indexer.getValueAt(newline_indexer.findFirst(position));
 				return nearest_linefeed < 0 ? len : nearest_linefeed;
+			case TeXTokenSpan.FLAG_SYMBOL:
+			default:
+				return position + 1;
 			}
-
-			// If not, then it is either a control sequence or (non-escaped) special symbol
-			if (charAt(position) == '\\')
-				return CSUtils.getEndOfControlSequenceAt(this, position);
-			return position + 1;
 		}
 		// if (what instanceof TeXReferenceSpan) {
 		// // TODO implement
@@ -212,7 +220,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T> T[] getSpans(int start, int end, Class<T> type) {
-		if (type == CharacterStyle.class) {
+		if (type == CharacterStyle.class || type == MetricAffectingSpan.class) {
 			// If this displayed line is cached, return cached result
 			if (cached_line_spans != null && cached_line_start <= start && end <= cached_line_end)
 				return (T[]) cached_line_spans;
@@ -257,17 +265,17 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 			// Now we are ready to produce the result
 			TeXTokenSpan[] result = new TeXTokenSpan[ssend - ssstart + bsend - bsstart + has_comment];
 			if (has_comment > 0)
-				result[0] = new TeXTokenSpan(this, comment_start, true);
+				result[0] = new TeXTokenSpan(this, comment_start, TeXTokenSpan.FLAG_COMMENT);
 			int d = has_comment; // has_comment - bsstart;
 			for (int bs = bsstart; bs < bsend; bs++) {
 				int pos = nonesc_backslash_indexer.getValueAt(bs);
-				result[d] = new TeXTokenSpan(this, pos, false);
+				result[d] = new TeXTokenSpan(this, pos, TeXTokenSpan.FLAG_CONTROL_SEQUENCE);
 				d++;
 			}
 			// d = has_comment + bsend - bsstart - ssstart;
 			for (int bs = ssstart; bs < ssend; bs++) {
 				int pos = nonesc_special_chars_indexer.getValueAt(bs);
-				result[d] = new TeXTokenSpan(this, pos, false);
+				result[d] = new TeXTokenSpan(this, pos, TeXTokenSpan.FLAG_SYMBOL);
 				d++;
 			}
 
@@ -294,7 +302,7 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	public int getSpanStart(Object what) {
 		if (what instanceof TeXTokenSpan) {
 			TeXTokenSpan ttsp = (TeXTokenSpan) what;
-			return ttsp.getPosition();
+			return ttsp.getTokenPosition();
 		}
 		// if (what instanceof TeXReferenceSpan) {
 		// return ((TeXReferenceSpan) what).position;
@@ -583,64 +591,83 @@ public class LaTeXStringBuilder extends SpannableStringBuilder {
 	 * @author L.A.H.
 	 * 
 	 */
-	static class TeXTokenSpan extends CharacterStyle implements UpdateAppearance, Comparable<TeXTokenSpan> {
+	public static class TeXTokenSpan extends MetricAffectingSpan implements UpdateAppearance, Comparable<TeXTokenSpan> {
 
 		/**
-		 * Colors constants to style document
+		 * Colors constants to style the tokens, corresponding to flags
 		 */
-		static final int COLOR_CONTROL_SEQUENCE = 0xFF0000FF, COLOR_COMMENT = 0xFFA0A0A0, COLOR_SYMBOL = 0xFFCC8000,
-				COLOR_FORMULA = 0xFF00CC00;
-
-		static final int FLAG_COMMAND = 0x40000000, FLAG_COMMENT = 0x80000000, FLAG_SYMBOL = 0x10000000;
+		static final int COLOR_CONTROL_SEQUENCE = 0xFF0000FF, // blue for control sequence
+				COLOR_COMMENT = 0xFFA0A0A0, // gray for comment
+				COLOR_SYMBOL = 0xFFCC8000, // yellow for (unescaped) symbol
+				COLOR_FORMULA = 0xFF00CC00, // green for math formulas
+				COLOR_ESCAPED_SYMBOL = 0xFFFF0000; // red for escaped symbol
 
 		/**
-		 * Mask to extract first two MSBs and the remaining 30 lower bits
+		 * AND-flags for the token types
 		 */
-		static final int MASK_TOKEN_TYPE = 0xC0000000, MASK_POSITION = 0x3FFFFFFF;
+		public static final int FLAG_CONTROL_SEQUENCE = 0, // \ followed by [a-z]+
+				FLAG_ESCAPED_SYMBOL = 1 << 28, // non-escaped special symbol
+				FLAG_COMMENT = 2 << 28, // % ... \n
+				FLAG_SYMBOL = 3 << 28; // special symbol
 
 		/**
-		 * The first two most-significant-bits represents the token type
+		 * Mask to extract token type and text position
 		 */
-		private int position;
+		static final int MASK_TOKEN_TYPE = 0xF0000000, MASK_POSITION = 0x0FFFFFFF;
 
-		public TeXTokenSpan(CharSequence text, int position, boolean is_comment) {
-			if (is_comment) {
-				this.position = position | FLAG_COMMENT;
-			} else {
-				this.position = position;
-				char c = text.charAt(position);
-				if (c == '\\' && position + 1 < text.length()) {
-					char nc = text.charAt(position + 1);
-					if (('A' <= nc && nc <= 'Z') || ('a' <= nc && nc <= 'z'))
-						this.position |= FLAG_COMMAND;
-				}
-			}
+		/**
+		 * Integer field to encapsulate the position (lower 28 bits) and the type of this span (first 4 bits); extracted
+		 * by ANDing with {@link #MASK_POSITION} and {@link #MASK_TOKEN_TYPE} respectively
+		 */
+		private int span_data;
+
+		public TeXTokenSpan(CharSequence text, int position, int flag) {
+			span_data = flag | position;
 		}
 
 		@Override
 		public int compareTo(TeXTokenSpan span) {
-			return position - span.position;
+			return span_data - span.span_data;
 		}
 
-		public int getPosition() {
-			return position & MASK_POSITION;
+		public int getFlagTokenType() {
+			return span_data & MASK_TOKEN_TYPE;
 		}
 
-		public boolean isComment() {
-			return (position & FLAG_COMMENT) == FLAG_COMMENT;
+		public int getTokenPosition() {
+			return span_data & MASK_POSITION;
 		}
 
 		@Override
 		public void updateDrawState(TextPaint ds) {
-			switch (position & MASK_TOKEN_TYPE) {
-			case FLAG_COMMAND:
+			updateMeasureState(ds);
+			switch (span_data & MASK_TOKEN_TYPE) {
+			case FLAG_CONTROL_SEQUENCE:
 				ds.setColor(COLOR_CONTROL_SEQUENCE);
+				break;
+			case FLAG_SYMBOL:
+				ds.setColor(COLOR_SYMBOL);
+				break;
+			case FLAG_ESCAPED_SYMBOL:
+				ds.setColor(COLOR_ESCAPED_SYMBOL);
 				break;
 			case FLAG_COMMENT:
 				ds.setColor(COLOR_COMMENT);
 				break;
+			}
+		}
+
+		@Override
+		public void updateMeasureState(TextPaint ds) {
+			switch (span_data & MASK_TOKEN_TYPE) {
+			// case FLAG_CONTROL_SEQUENCE:
+			case FLAG_SYMBOL:
+				ds.setTypeface(Typeface.create(ds.getTypeface(), Typeface.BOLD));
+				if (!ds.getTypeface().isBold())
+					ds.setFlags(Paint.FAKE_BOLD_TEXT_FLAG | Paint.ANTI_ALIAS_FLAG);
+				break;
 			default:
-				ds.setColor(COLOR_SYMBOL);
+				break;
 			}
 		}
 	}
